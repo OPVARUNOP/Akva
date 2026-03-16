@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="akva_accent">#FF6F00</color>
+    <color name="akva_bg">#0D0D1A</color>
+    <color name="akva_gold">#F5A623</color>
+    <color name="akva_green">#00E676</color>
+    <color name="akva_primary">#6C63FF</color>
+    <color name="akva_red">#E94560</color>
+    <color name="akva_secondary">#00E5FF</color>
+    <color name="akva_surface">#1A1A2E</color>
+    <color name="ic_launcher_background">#1A1A2E</color>
+    <string name="accessibility_service_description">AKVA gives your phone a voice. It speaks to you from every app, learns your patterns, and makes your phone feel alive. Created by Varun.</string>
+    <string name="app_name">AKVA</string>
+    <style name="Theme.AKVA" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/akva_bg</item>
+        <item name="android:statusBarColor">@color/akva_bg</item>
+        <item name="android:navigationBarColor">@color/akva_bg</item>
+    </style>
+    <style name="Theme.AKVA.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0D0D1A</item>
+        <item name="postSplashScreenTheme">@style/Theme.AKVA</item>
+    </style>
+</resources>

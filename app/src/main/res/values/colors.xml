@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="akva_bg">#0D0D1A</color>
+    <color name="akva_primary">#6C63FF</color>
+    <color name="akva_secondary">#00E5FF</color>
+    <color name="akva_accent">#FF6F00</color>
+    <color name="akva_surface">#1A1A2E</color>
+    <color name="akva_red">#E94560</color>
+    <color name="akva_gold">#F5A623</color>
+    <color name="akva_green">#00E676</color>
+    <color name="ic_launcher_background">#1A1A2E</color>
+</resources>
