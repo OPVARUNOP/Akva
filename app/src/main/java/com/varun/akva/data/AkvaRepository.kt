@@ -1,23 +1,32 @@
 package com.varun.akva.data
 
-import android.content.Context
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import java.util.Calendar
 
-class AkvaRepository(context: Context) {
+class AkvaRepository(
+    private val usageDao: AppUsageDao,
+    private val personalityDao: AppPersonalityDao
+) {
 
-    private val db = AkvaDatabase.getInstance(context)
-    private val usageDao = db.appUsageDao()
-    private val personalityDao = db.appPersonalityDao()
-
-    suspend fun logEvent(packageName: String, stressScore: Int, isNight: Boolean, spokenText: String) {
+    suspend fun logEvent(packageName: String, stressScore: Int, isNight: Boolean, aiResponse: String) {
         usageDao.insertUsageEvent(
             AppUsageEvent(
                 packageName = packageName,
                 timestamp = System.currentTimeMillis(),
                 isNightUsage = isNight,
                 stressScore = stressScore,
-                spokenText = spokenText
+                aiResponse = aiResponse
             )
         )
+    }
+
+    fun getRecentEvents(limit: Int): Flow<List<AppUsageEvent>> = flow {
+        emit(usageDao.getLatestEvents(limit))
+    }
+
+    suspend fun getRecentEventsList(limit: Int): List<AppUsageEvent> {
+        return usageDao.getLatestEvents(limit)
     }
 
     suspend fun getTimesOpenedToday(packageName: String): Int {
@@ -25,37 +34,12 @@ class AkvaRepository(context: Context) {
         return usageDao.getOpenCount(packageName, todayStart)
     }
 
-    suspend fun getRecentEvents(limit: Int): List<AppUsageEvent> {
-        return usageDao.getLatestEvents(limit)
-    }
-
-    suspend fun getRecentUsage(since: Long): List<AppUsageEvent> {
-        return usageDao.getRecentUsage(since)
-    }
-
-    suspend fun getMostUsedApps(since: Long, limit: Int = 5): List<AppCount> {
-        return usageDao.getMostUsedApps(since, limit)
-    }
-
-    suspend fun getStressEvents(since: Long): List<AppUsageEvent> {
-        return usageDao.getStressEvents(7, since)
-    }
-
-    suspend fun getLateNightUsage(since: Long): List<AppUsageEvent> {
-        return usageDao.getLateNightUsage(since)
-    }
-
-    suspend fun cleanup() {
-        val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
-        usageDao.deleteOlderThan(thirtyDaysAgo)
-    }
-
     private fun getTodayStart(): Long {
-        val cal = java.util.Calendar.getInstance()
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0)
-        cal.set(java.util.Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
+        return Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
     }
 }

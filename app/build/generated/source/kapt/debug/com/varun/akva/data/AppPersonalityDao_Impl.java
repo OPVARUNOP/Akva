@@ -65,7 +65,7 @@ public final class AppPersonalityDao_Impl implements AppPersonalityDao {
 
   @Override
   public Object insertOrUpdate(final AppPersonality personality,
-      final Continuation<? super Unit> $completion) {
+      final Continuation<? super Unit> arg1) {
     return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
       @Override
       @NonNull
@@ -79,12 +79,12 @@ public final class AppPersonalityDao_Impl implements AppPersonalityDao {
           __db.endTransaction();
         }
       }
-    }, $completion);
+    }, arg1);
   }
 
   @Override
   public Object getPersonality(final String packageName,
-      final Continuation<? super AppPersonality> $completion) {
+      final Continuation<? super AppPersonality> arg1) {
     final String _sql = "SELECT * FROM app_personalities WHERE packageName = ?";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
     int _argIndex = 1;
@@ -137,7 +137,7 @@ public final class AppPersonalityDao_Impl implements AppPersonalityDao {
           _statement.release();
         }
       }
-    }, $completion);
+    }, arg1);
   }
 
   @Override

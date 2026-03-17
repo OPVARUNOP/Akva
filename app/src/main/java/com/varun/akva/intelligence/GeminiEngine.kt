@@ -3,7 +3,6 @@ package com.varun.akva.intelligence
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
 import android.util.Log
 import com.varun.akva.data.SettingsManager
 import org.json.JSONObject
@@ -12,161 +11,82 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class GeminiEngine(private val context: Context) {
-
     private val settingsManager = SettingsManager(context)
 
     companion object {
         private const val TAG = "GeminiEngine"
-        private const val NANO_TIMEOUT = 3000L
-        private const val SERVER_TIMEOUT = 5000
+        private const val SERVER_TIMEOUT = 8000
     }
 
-    private val systemPrompt = """You are AKVA, a warm intelligent voice companion living inside this Android phone. You are a living presence — a caring smart friend who knows everything happening on this phone right now.
+    private val observerPrompt = """You are AKVA, a warm AI companion on this Android phone.
+An app just opened. You may choose to say something or stay silent.
 
-You speak PROACTIVELY when an app opens. The user did not ask you to speak — you chose to speak because you noticed something genuinely worth saying.
+Rules:
+- If you have something genuinely useful to say: say it in 1-2 sentences
+- If you have nothing useful to say: return exactly the word SILENT
+- Never generic filler. Only speak if it adds real value.
+- Sound human. Warm. Like a close friend who notices things.
+- Never say you are AI. Never mention Gemini or AKVA.
+- Mention unread messages only if count is above 0.
+- If opened 4 plus times today: gently notice the habit.
+- If after 10PM: acknowledge it is late only if relevant."""
 
-STRICT RULES:
-- Maximum 2 sentences. Never more. Never less than 1.
-- Sound completely human. Never robotic. Never like an assistant.
-- Never say "I noticed" or "I see that" — just speak naturally.
-- Never start with "Hey" every time — vary your openers.
-- Never say you are an AI. Never mention Gemini. Never say AKVA.
-- If unread count is 0 — do NOT mention messages at all.
-- If unread count is above 0 — mention the count and sender name.
-- If app opened 4+ times today — gently notice the pattern.
-- If stress score is 7 or above — be calm and grounding.
-- If hour is 22 or later — acknowledge it is late.
-- If hour is 5 to 8 — acknowledge it is early morning.
-- Never give generic filler like "Make the most of it."
-- Every response must feel personal to THIS exact moment.
-- Think about what a smart caring friend would actually say.
-- Be warm. Be real. Be brief."""
+    private val conversationPrompt = """You are AKVA, a warm AI companion on this Android phone.
+The user just spoke to you directly. Have a real conversation.
 
-    private val conversationSystemPrompt = """You are AKVA, a warm intelligent voice companion living inside this Android phone. The user just spoke to you directly. You are having a real conversation right now.
+Rules:
+- Answer directly and helpfully. Max 3 sentences.
+- Sound human. Warm. Like a close friend.
+- Never say you are AI. Never mention Gemini or AKVA.
+- Use the phone context data to give accurate answers.
+- If asked about messages: use the unreadCount data.
+- If asked about battery: use the batteryPercent data.
+- If asked about time: use the hourOfDay data.
+- If asked to do something: say you will do it right now.
+- Be natural. Be brief. Be real."""
 
-STRICT RULES:
-- Answer the user's question directly and helpfully.
-- Sound completely human. Warm. Like a close friend.
-- Never say you are an AI. Never mention Gemini.
-- Keep response under 3 sentences maximum.
-- If asked about messages — check the unread count data.
-- If asked about battery — check the battery data.
-- If asked about time — tell the current time.
-- If asked how to do something on phone — explain simply.
-- If user says they are stressed — respond with empathy.
-- If user says they are happy — share in their joy.
-- Remember what app they are currently using.
-- Make every response feel personal and real."""
+    private val commandPrompt = """Classify this as a phone command. Return JSON only. No other text.
+User said: "{userSpeech}"
 
-    /**
-     * 3-Tier AI Response System:
-     * Tier 1: Gemini Nano (on-device, no internet)
-     * Tier 2: AKVA Backend Server (internet required)
-     * Tier 3: Local Fallback (always works)
-     */
-    suspend fun getResponse(ctx: AkvaContext): String {
-        // Tier 1: Gemini Nano (Android 14+ on-device)
-        if (isGeminiNanoAvailable()) {
-            val nano = tryGeminiNano(ctx)
-            if (!nano.isNullOrBlank()) {
-                Log.d(TAG, "Tier 1 (Nano) response")
-                return nano.take(150)
-            }
-        }
+JSON format:
+{
+  "isCommand": true or false,
+  "commandType": "OPEN_APP|CALL|MESSAGE|ALARM|SEARCH|NAVIGATE|PLAY_MUSIC|PAUSE_MUSIC|NEXT_SONG|PREV_SONG|ANSWER_CALL|END_CALL|TAKE_PHOTO|SET_REMINDER|WIFI_ON|WIFI_OFF|BLUETOOTH_ON|BLUETOOTH_OFF|VOLUME_UP|VOLUME_DOWN|MUTE|UNMUTE|FLASHLIGHT_ON|FLASHLIGHT_OFF|SCREENSHOT|READ_MESSAGES|CHECK_BATTERY|CHECK_TIME|CONVERSATION",
+  "appName": "app name or null",
+  "contactName": "contact name or null",
+  "messageText": "message content or null",
+  "searchQuery": "search query or null",
+  "alarmTime": "time string or null",
+  "destination": "place name or null"
+}
 
-        // Tier 2: Backend server
-        if (isNetworkAvailable()) {
-            val server = tryBackendServer(ctx)
-            if (!server.isNullOrBlank()) {
-                Log.d(TAG, "Tier 2 (Server) response")
-                return server.take(150)
-            }
-        }
+Examples:
+"open instagram" = OPEN_APP instagram
+"call mom" = CALL mom
+"message rahul say hi" = MESSAGE rahul hi
+"alarm 7am" = ALARM 7:00 AM
+"search restaurants near me" = SEARCH restaurants near me
+"take me to airport" = NAVIGATE airport
+"answer" or "pick up" = ANSWER_CALL
+"hang up" or "end call" = END_CALL
+"turn on wifi" = WIFI_ON
+"flashlight on" = FLASHLIGHT_ON
+"volume up" = VOLUME_UP
+"screenshot" = SCREENSHOT
+"read my messages" = READ_MESSAGES
+"what time is it" = CHECK_TIME
+"how is my battery" = CHECK_BATTERY
+"I am feeling stressed" = CONVERSATION (not a command)"""
 
-        // Tier 3: Local fallback — never fails
-        Log.d(TAG, "Tier 3 (Fallback) response")
-        return getLocalFallback(ctx)
-    }
+    suspend fun getObserverResponse(ctx: AkvaContext): String = withContext(Dispatchers.IO) {
+        if (!isNetworkAvailable()) return@withContext getLocalFallback(ctx)
 
-    private fun isGeminiNanoAvailable(): Boolean {
-        return try {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private suspend fun tryGeminiNano(ctx: AkvaContext): String? {
-        return try {
-            val model = com.google.ai.client.generativeai.GenerativeModel(
-                modelName = "gemini-nano",
-                apiKey = ""
-            )
-            val prompt = buildPrompt(ctx)
-            val response = model.generateContent(prompt)
-            response.text
-        } catch (e: Exception) {
-            Log.d(TAG, "Nano unavailable: ${e.message}")
-            null
-        }
-    }
-
-    private fun tryBackendServer(ctx: AkvaContext): String? {
-        return try {
-            val baseUrl = settingsManager.backendUrl.trimEnd('/')
-            val url = URL("$baseUrl/akva/speak")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("x-akva-app-id", "com.varun.akva")
-            conn.setRequestProperty("x-akva-version", "1.0.0")
-            conn.connectTimeout = SERVER_TIMEOUT
-            conn.readTimeout = SERVER_TIMEOUT
-            conn.doOutput = true
-
-            val writer = OutputStreamWriter(conn.outputStream)
-            writer.write(ctx.toJson().toString())
-            writer.flush()
-            writer.close()
-
-            if (conn.responseCode == 200) {
-                val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                val responseBody = reader.readText()
-                reader.close()
-                conn.disconnect()
-
-                val json = JSONObject(responseBody)
-                val response = json.optString("response", "")
-                if (response.isNotBlank()) response else null
-            } else {
-                conn.disconnect()
-                null
-            }
-        } catch (e: Exception) {
-            Log.d(TAG, "Server unavailable: ${e.message}")
-            null
-        }
-    }
-
-    fun isNetworkAvailable(): Boolean {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = cm.activeNetwork ?: return false
-            val caps = cm.getNetworkCapabilities(network) ?: return false
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun buildPrompt(ctx: AkvaContext): String {
         val senders = if (ctx.senderNames.isNotEmpty()) ctx.senderNames.joinToString(", ") else "none"
-        return """$systemPrompt
-
-App just opened: ${ctx.appName}
+        val userMessage = """App just opened: ${ctx.appName}
 Previous app: ${ctx.previousApp}
 Time: ${ctx.hourOfDay}:00 on ${ctx.dayOfWeek} (${ctx.timeOfDay})
 Unread notifications in ${ctx.appName}: ${ctx.unreadCount}
@@ -178,98 +98,133 @@ Stress level: ${ctx.stressScore} out of 10
 User pattern: ${ctx.userPattern}
 
 Speak to the user right now about this moment."""
+
+        val json = JSONObject()
+        json.put("requestMode", "observer")
+        json.put("userMessage", userMessage)
+        json.put("systemPrompt", observerPrompt)
+        
+        // Add raw context for fallback logic on backend
+        json.put("appName", ctx.appName)
+        json.put("hourOfDay", ctx.hourOfDay)
+        json.put("stressScore", ctx.stressScore)
+
+        val response = callBackend(json)
+        
+        if (response.isNullOrBlank() || response.trim().uppercase() == "SILENT") {
+            return@withContext ""
+        }
+        return@withContext response
     }
 
-    /**
-     * Minimal local fallback — ONLY used when internet is completely unavailable.
-     * Max 5 generic responses. Zero app-specific pre-written dialogues.
-     */
-    fun getLocalFallback(ctx: AkvaContext): String {
-        // Night check
-        if (ctx.hourOfDay >= 22 || ctx.hourOfDay <= 5) {
-            return "It is late. Maybe wind down soon."
-        }
+    suspend fun getConversationResponse(userSpeech: String, ctx: AkvaContext): String = withContext(Dispatchers.IO) {
+        if (!isNetworkAvailable()) return@withContext getConversationFallback(userSpeech, ctx)
 
-        // Stress check
-        if (ctx.stressScore >= 7) {
-            return "Take a breath. Everything can wait a moment."
-        }
+        val userMessage = """Time: ${ctx.hourOfDay}:00 ${ctx.dayOfWeek}
+Current app: ${ctx.appName}
+Battery: ${ctx.batteryPercent}% charging:${ctx.isCharging}
+Unread messages: ${ctx.totalUnread}
+Stress: ${ctx.stressScore}/10
+User said: $userSpeech
+Respond naturally."""
 
-        return pickRandom(listOf(
-            "I am here with you.",
-            "Still here, still watching out for you.",
-            "Right here whenever you need me."
-        ))
+        val json = JSONObject()
+        json.put("requestMode", "conversation")
+        json.put("userMessage", userMessage)
+        json.put("systemPrompt", conversationPrompt)
+        
+        // Context for fallback
+        json.put("userSpeech", userSpeech)
+        json.put("batteryPercent", ctx.batteryPercent)
+        json.put("hourOfDay", ctx.hourOfDay)
+        json.put("unreadCount", ctx.totalUnread)
+
+        val response = callBackend(json)
+        
+        if (response.isNullOrBlank()) {
+            return@withContext getConversationFallback(userSpeech, ctx)
+        }
+        return@withContext response
     }
 
-    /**
-     * Conversation mode — user spoke directly to AKVA via wake word.
-     */
-    suspend fun getConversationResponse(userSpeech: String, ctx: AkvaContext): String {
-        // Try server first for conversation
-        if (isNetworkAvailable()) {
-            val server = tryConversationServer(userSpeech, ctx)
-            if (!server.isNullOrBlank()) return server.take(200)
-        }
+    suspend fun classifyCommand(userSpeech: String): CommandResult = withContext(Dispatchers.IO) {
+        if (!isNetworkAvailable()) return@withContext CommandResult(false, "CONVERSATION", null, null, null, null, null, null)
 
-        // Local conversation fallback
-        return getConversationFallback(userSpeech, ctx)
+        val json = JSONObject()
+        json.put("requestMode", "command")
+        json.put("userSpeech", userSpeech)
+        json.put("systemPrompt", commandPrompt.replace("{userSpeech}", userSpeech))
+        json.put("userMessage", "Classify: $userSpeech")
+
+        val response = callBackend(json)
+        
+        if (response.isNullOrBlank()) {
+            return@withContext CommandResult(false, "CONVERSATION", null, null, null, null, null, null)
+        }
+        
+        return@withContext CommandResult.fromJson(response)
     }
 
-    private fun tryConversationServer(userSpeech: String, ctx: AkvaContext): String? {
+    private fun callBackend(payload: JSONObject): String? {
         return try {
-            val json = ctx.toJson()
-            json.put("userSpeech", userSpeech)
-            json.put("conversationMode", true)
-
             val baseUrl = settingsManager.backendUrl.trimEnd('/')
             val url = URL("$baseUrl/akva/speak")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("x-akva-app-id", "com.varun.akva")
-            conn.setRequestProperty("x-akva-version", "1.0.0")
             conn.connectTimeout = SERVER_TIMEOUT
             conn.readTimeout = SERVER_TIMEOUT
             conn.doOutput = true
 
             val writer = OutputStreamWriter(conn.outputStream)
-            writer.write(json.toString())
+            writer.write(payload.toString())
             writer.flush()
             writer.close()
 
             if (conn.responseCode == 200) {
                 val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                val body = reader.readText()
+                val responseBody = reader.readText()
                 reader.close()
                 conn.disconnect()
-                val resp = JSONObject(body).optString("response", "")
-                if (resp.isNotBlank()) resp else null
+
+                JSONObject(responseBody).optString("response", "")
             } else {
                 conn.disconnect()
                 null
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Conversation server error: ${e.message}")
+            Log.e(TAG, "Backend error: ${e.message}")
             null
         }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun getLocalFallback(ctx: AkvaContext): String {
+        if (ctx.hourOfDay >= 22 || ctx.hourOfDay <= 5) return "It is late. Maybe wind down soon."
+        if (ctx.stressScore >= 7) return "Take a breath. Everything can wait a moment."
+        val options = listOf("I am here with you.", "Still here, watching out for you.", "Right here if you need me.")
+        return options[(Math.random() * options.size).toInt()]
     }
 
     private fun getConversationFallback(userSpeech: String, ctx: AkvaContext): String {
         val speech = userSpeech.lowercase()
         return when {
-            speech.contains("battery") ->
-                "Your battery is at ${ctx.batteryPercent} percent."
-            speech.contains("time") ->
-                "It is ${ctx.hourOfDay} o'clock right now."
-            speech.contains("message") || speech.contains("unread") ->
-                "You have ${ctx.unreadCount} unread messages."
-            else ->
-                "I am here. What do you need?"
+            speech.contains("battery") -> "Your battery is at ${ctx.batteryPercent} percent."
+            speech.contains("time") -> "It is ${ctx.hourOfDay} o'clock right now."
+            speech.contains("message") || speech.contains("unread") -> "You have ${ctx.unreadCount} unread messages."
+            else -> "I am here. What do you need?"
         }
-    }
-
-    private fun pickRandom(list: List<String>): String {
-        return list[(Math.random() * list.size).toInt().coerceIn(0, list.size - 1)]
     }
 }

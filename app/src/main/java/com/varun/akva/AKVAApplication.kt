@@ -13,8 +13,8 @@ class AKVAApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        database = AkvaDatabase.getInstance(this)
-        repository = AkvaRepository(this)
+        database = AkvaDatabase.getDatabase(this)
+        repository = AkvaRepository(database.usageDao(), database.personalityDao())
         settingsManager = SettingsManager(this)
     }
 }

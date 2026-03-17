@@ -22,12 +22,12 @@ class AKVAVoiceInput(private val context: Context) {
     private val settingsManager = SettingsManager(context)
     private val contextDetector = ContextDetector(context)
     private val geminiEngine = GeminiEngine(context)
-    private val personalityEngine = PersonalityEngine()
-    private val nightModeManager = NightModeManager(context)
     private val phoneSystemMonitor = PhoneSystemMonitor(context)
     private val hapticEngine = HapticEngine(context)
-    private val stressDetector = StressDetector(context)
     private var voiceEngine: VoiceEngine? = null
+    // Assuming accessibility service gives us global actions
+    private val commandEngine = AKVACommandEngine(context, AKVAAccessibilityService.instance) 
+    
     private var speechRecognizer: SpeechRecognizer? = null
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -46,14 +46,8 @@ class AKVAVoiceInput(private val context: Context) {
     }
 
     private fun startListening() {
-        if (isListening) return
-        if (isDestroyed) return
-        if (phoneSystemMonitor.isInActiveCall()) {
-            // Retry later
-            handler.postDelayed({ if (!isDestroyed) startListening() }, 5000)
-            return
-        }
-
+        if (isListening || isDestroyed) return
+        
         try {
             speechRecognizer?.destroy()
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
@@ -77,7 +71,6 @@ class AKVAVoiceInput(private val context: Context) {
                 override fun onError(error: Int) {
                     isListening = false
                     if (isDestroyed) return
-                    // Always restart unless permission issue or destroyed
                     if (error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
                         handler.postDelayed({ if (!isDestroyed && settingsManager.wakeWordEnabled) startListening() }, 1000)
                     }
@@ -121,25 +114,23 @@ class AKVAVoiceInput(private val context: Context) {
 
     private fun onWakeWordDetected(fullText: String) {
         try {
-            // Stop any current speech immediately
             voiceEngine?.stop()
 
-            // Play acknowledgment tone (soft beep)
             val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 50)
-            tg.startTone(ToneGenerator.TONE_PROP_ACK, 150)
+            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
             handler.postDelayed({ tg.release() }, 200)
-            hapticEngine.playAchievement()
+            hapticEngine.playTick()
 
-            // Extract command after wake word
-            val command = wakeWords.fold(fullText) { acc, w -> acc.replace(w, "").trim() }
-            if (command.length > 3) {
-                processCommand(command)
+            var commandText = fullText
+            wakeWords.forEach { commandText = commandText.replace(it, "") }
+            commandText = commandText.trim()
+
+            if (commandText.length > 3) {
+                processCommand(commandText)
             } else {
-                // Wait for user to speak their command
                 isWaitingForCommand = true
                 speechRecognizer?.destroy()
                 handler.postDelayed({ startListening() }, 300)
-                // Timeout — if no command in 10s, go back to passive
                 handler.postDelayed({
                     if (isWaitingForCommand) {
                         isWaitingForCommand = false
@@ -153,36 +144,45 @@ class AKVAVoiceInput(private val context: Context) {
         }
     }
 
-    private fun processCommand(command: String) {
+    private fun processCommand(userSpeech: String) {
         scope.launch {
             try {
-                val ctx = AkvaContext(
-                    appName = "Conversation",
-                    packageName = "com.varun.akva",
-                    previousApp = "",
-                    timeOfDay = contextDetector.getTimeOfDay(),
-                    hourOfDay = contextDetector.getHourOfDay(),
-                    dayOfWeek = contextDetector.getDayOfWeek(),
-                    unreadCount = AKVANotificationListener.getTotalUnread(),
-                    senderNames = emptyList(),
-                    timesOpenedToday = 0,
-                    batteryPercent = phoneSystemMonitor.getBatteryPercent(),
-                    isCharging = phoneSystemMonitor.isCharging(),
-                    networkType = phoneSystemMonitor.getNetworkType(),
-                    stressScore = stressDetector.getStressScore(),
-                    userPattern = "",
-                    deviceId = ""
-                )
-
-                val response = withContext(Dispatchers.IO) {
-                    geminiEngine.getConversationResponse(command, ctx)
+                // First: Classify if it's a command
+                val commandClassification = withContext(Dispatchers.IO) {
+                    geminiEngine.classifyCommand(userSpeech)
                 }
 
-                voiceEngine?.speakImmediate(
-                    response,
-                    personalityEngine.getDefaultVoice(),
-                    nightModeManager.isNightMode()
-                )
+                if (commandClassification.isCommand) {
+                    // It is a specific phone command
+                    val executionResult = commandEngine.execute(commandClassification)
+                    voiceEngine?.speakConversation(executionResult)
+                } else {
+                    // It is a general conversation
+                    val ctx = AkvaContext(
+                        appName = "Unknown",
+                        packageName = "",
+                        previousApp = "",
+                        timeOfDay = contextDetector.getTimeOfDay(),
+                        hourOfDay = contextDetector.getHourOfDay(),
+                        dayOfWeek = contextDetector.getDayOfWeek(),
+                        unreadCount = AKVANotificationListener.getTotalUnread(),
+                        totalUnread = AKVANotificationListener.getTotalUnread(),
+                        senderNames = emptyList(),
+                        timesOpenedToday = 0,
+                        batteryPercent = phoneSystemMonitor.getBatteryPercent(),
+                        isCharging = phoneSystemMonitor.isCharging(),
+                        networkType = phoneSystemMonitor.getNetworkType(),
+                        stressScore = 0,
+                        userPattern = "",
+                        deviceId = ""
+                    )
+
+                    val response = withContext(Dispatchers.IO) {
+                        geminiEngine.getConversationResponse(userSpeech, ctx)
+                    }
+
+                    voiceEngine?.speakConversation(response)
+                }
 
                 // Wait for speech to finish, then restart listening
                 handler.postDelayed({ restartListening(500) }, 4000)

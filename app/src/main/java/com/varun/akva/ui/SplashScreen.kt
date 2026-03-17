@@ -1,8 +1,7 @@
 package com.varun.akva.ui
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,80 +9,68 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.varun.akva.R
+import com.varun.akva.ui.theme.AkvaBlack
+import com.varun.akva.ui.theme.AkvaBlue
+import com.varun.akva.ui.theme.AkvaGold
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onNavigate: () -> Unit) {
-    var logoVisible by remember { mutableStateOf(false) }
-    var taglineVisible by remember { mutableStateOf(false) }
-    var authorVisible by remember { mutableStateOf(false) }
+fun SplashScreen(onTimeout: () -> Unit) {
+    var logoAlpha by remember { mutableFloatStateOf(0f) }
+    var titleAlpha by remember { mutableFloatStateOf(0f) }
+    var authorAlpha by remember { mutableFloatStateOf(0f) }
+
+    val logoAnim by animateFloatAsState(targetValue = logoAlpha, animationSpec = tween(800), label = "logo")
+    val titleAnim by animateFloatAsState(targetValue = titleAlpha, animationSpec = tween(400), label = "title")
+    val authorAnim by animateFloatAsState(targetValue = authorAlpha, animationSpec = tween(400), label = "author")
 
     LaunchedEffect(Unit) {
-        logoVisible = true
-        delay(500)
-        taglineVisible = true
-        delay(500)
-        authorVisible = true
+        logoAlpha = 1f
+        delay(800)
+        titleAlpha = 1f
+        delay(400)
+        authorAlpha = 1f
         delay(1000)
-        onNavigate()
+        onTimeout()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0D0D1A)),
+            .background(AkvaBlack),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            AnimatedVisibility(
-                visible = logoVisible,
-                enter = fadeIn(animationSpec = tween(800))
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.akva_logo_vector),
-                    contentDescription = "AKVA Logo",
-                    modifier = Modifier
-                        .width(280.dp)
-                        .height(120.dp),
-                    contentScale = ContentScale.Fit
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            AnimatedVisibility(
-                visible = taglineVisible,
-                enter = fadeIn(animationSpec = tween(1000))
-            ) {
-                Text(
-                    text = "The Living OS",
-                    color = Color(0xFF4A90D9),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 2.sp
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = authorVisible,
-            enter = fadeIn(animationSpec = tween(800)),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp)
-        ) {
+            Image(
+                painter = painterResource(id = R.drawable.akva_logo),
+                contentDescription = "AKVA Logo",
+                modifier = Modifier
+                    .size(120.dp)
+                    .alpha(logoAnim)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "The Living OS",
+                color = AkvaBlue,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Light,
+                letterSpacing = 2.sp,
+                modifier = Modifier.alpha(titleAnim)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "by Varun",
-                color = Color(0xFFF5A623),
+                color = AkvaGold,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.sp,
+                modifier = Modifier.alpha(authorAnim)
             )
         }
     }

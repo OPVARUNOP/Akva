@@ -36,10 +36,10 @@ public final class AkvaDatabase_Impl extends AkvaDatabase {
     final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(1) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS `app_usage_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `durationMillis` INTEGER, `isNightUsage` INTEGER NOT NULL, `stressScore` INTEGER NOT NULL, `spokenText` TEXT NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `app_usage_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `durationMillis` INTEGER, `isNightUsage` INTEGER NOT NULL, `stressScore` INTEGER NOT NULL, `aiResponse` TEXT NOT NULL)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `app_personalities` (`packageName` TEXT NOT NULL, `voiceStyle` TEXT NOT NULL, `isEnabled` INTEGER NOT NULL, `pitch` REAL NOT NULL, `speechRate` REAL NOT NULL, PRIMARY KEY(`packageName`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6ddadf5b89bc52931c8769469f87378a')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1182d1a5abe556e448b9d6f54a95bc42')");
       }
 
       @Override
@@ -96,7 +96,7 @@ public final class AkvaDatabase_Impl extends AkvaDatabase {
         _columnsAppUsageEvents.put("durationMillis", new TableInfo.Column("durationMillis", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAppUsageEvents.put("isNightUsage", new TableInfo.Column("isNightUsage", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAppUsageEvents.put("stressScore", new TableInfo.Column("stressScore", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
-        _columnsAppUsageEvents.put("spokenText", new TableInfo.Column("spokenText", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppUsageEvents.put("aiResponse", new TableInfo.Column("aiResponse", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysAppUsageEvents = new HashSet<TableInfo.ForeignKey>(0);
         final HashSet<TableInfo.Index> _indicesAppUsageEvents = new HashSet<TableInfo.Index>(0);
         final TableInfo _infoAppUsageEvents = new TableInfo("app_usage_events", _columnsAppUsageEvents, _foreignKeysAppUsageEvents, _indicesAppUsageEvents);
@@ -123,7 +123,7 @@ public final class AkvaDatabase_Impl extends AkvaDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "6ddadf5b89bc52931c8769469f87378a", "c32a24ca1fb2246fe67e7adb567a0e17");
+    }, "1182d1a5abe556e448b9d6f54a95bc42", "7e7d45a6fab0a27eaaf68d8761e3fc53");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -180,7 +180,7 @@ public final class AkvaDatabase_Impl extends AkvaDatabase {
   }
 
   @Override
-  public AppUsageDao appUsageDao() {
+  public AppUsageDao usageDao() {
     if (_appUsageDao != null) {
       return _appUsageDao;
     } else {
@@ -194,7 +194,7 @@ public final class AkvaDatabase_Impl extends AkvaDatabase {
   }
 
   @Override
-  public AppPersonalityDao appPersonalityDao() {
+  public AppPersonalityDao personalityDao() {
     if (_appPersonalityDao != null) {
       return _appPersonalityDao;
     } else {

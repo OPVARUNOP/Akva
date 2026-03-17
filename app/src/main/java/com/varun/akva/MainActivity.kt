@@ -13,107 +13,101 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.varun.akva.services.AKVAAccessibilityService
+import com.varun.akva.data.AkvaDatabase
+import com.varun.akva.data.AkvaRepository
+import com.varun.akva.data.SettingsManager
 import com.varun.akva.services.AKVABackgroundService
 import com.varun.akva.ui.*
 import com.varun.akva.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
-    private var accessibilityGranted by mutableStateOf(false)
-    private var notificationGranted by mutableStateOf(false)
-    private var overlayGranted by mutableStateOf(false)
-    private var microphoneGranted by mutableStateOf(false)
-    private var phoneStateGranted by mutableStateOf(false)
+    private var permsStatus by mutableStateOf(mapOf(
+        "accessibility" to false,
+        "notification" to false,
+        "overlay" to false,
+        "microphone" to false,
+        "phone" to false
+    ))
 
-    private val micPermLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        microphoneGranted = it
+    private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        refreshPermissions()
     }
-    private val phonePermLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        phoneStateGranted = it
-    }
+
+    private lateinit var repository: AkvaRepository
+    private lateinit var settingsManager: SettingsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val database = AkvaDatabase.getDatabase(this)
+        repository = AkvaRepository(database.usageDao(), database.personalityDao())
+        settingsManager = SettingsManager(this)
+
         refreshPermissions()
 
         setContent {
             AKVATheme {
                 val navController = rememberNavController()
-                val currentRoute by navController.currentBackStackEntryAsState()
-
-                data class NavItem(val route: String, val icon: ImageVector, val label: String)
-                val navItems = listOf(
-                    NavItem("home", Icons.Default.Home, "Home"),
-                    NavItem("setup", Icons.Default.Build, "Setup"),
-                    NavItem("voice", Icons.Default.PlayArrow, "Voice"),
-                    NavItem("log", Icons.Default.List, "Log"),
-                    NavItem("settings", Icons.Default.Settings, "Settings")
-                )
 
                 Scaffold(
-                    containerColor = AkvaBackground,
-                    bottomBar = {
-                        NavigationBar(containerColor = AkvaSurface) {
-                            navItems.forEach { item ->
-                                NavigationBarItem(
-                                    icon = { Icon(item.icon, item.label) },
-                                    label = { Text(item.label) },
-                                    selected = currentRoute?.destination?.route == item.route,
-                                    onClick = {
-                                        if (currentRoute?.destination?.route != item.route) {
-                                            navController.navigate(item.route) {
-                                                popUpTo("home") { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = AkvaBlueWave,
-                                        selectedTextColor = AkvaBlueWave,
-                                        unselectedIconColor = AkvaMuted,
-                                        unselectedTextColor = AkvaMuted,
-                                        indicatorColor = AkvaBlueWave.copy(alpha = 0.15f)
-                                    )
-                                )
-                            }
-                        }
-                    }
+                    containerColor = AkvaBlack
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "home",
+                        startDestination = "splash",
                         modifier = Modifier.padding(innerPadding)
                     ) {
+                        composable("splash") {
+                            SplashScreen(onTimeout = {
+                                navController.navigate("home") {
+                                    popUpTo("splash") { inclusive = true }
+                                }
+                            })
+                        }
                         composable("home") {
                             HomeScreen(
-                                onSetupClick = { navController.navigate("setup") },
-                                onTestVoice = { navController.navigate("voice") },
-                                onMorningBrief = { navController.navigate("voice") },
-                                onSettingsClick = { navController.navigate("settings") }
+                                onSetupClick = { navController.navigate("permissions") },
+                                onManualMicClick = { /* Will implement voice trigger later */ },
+                                onSettingsClick = { navController.navigate("settings") },
+                                onActivityLogClick = { navController.navigate("log") }
                             )
                         }
-                        composable("setup") {
+                        composable("permissions") {
                             PermissionsScreen(
-                                accessibilityGranted, notificationGranted,
-                                overlayGranted, microphoneGranted, phoneStateGranted
+                                onBack = { navController.popBackStack() },
+                                permsStatus = permsStatus,
+                                onRequestPermission = { perm ->
+                                    val androidPerm = when (perm) {
+                                        "microphone" -> Manifest.permission.RECORD_AUDIO
+                                        "phone" -> Manifest.permission.READ_PHONE_STATE
+                                        else -> null
+                                    }
+                                    if (androidPerm != null) {
+                                        permissionLauncher.launch(arrayOf(androidPerm))
+                                    }
+                                }
                             )
                         }
-                        composable("voice") { VoiceTestScreen() }
-                        composable("log") { ActivityLogScreen() }
-                        composable("settings") { SettingsScreen() }
+                        composable("settings") { 
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() },
+                                settingsManager = settingsManager
+                            ) 
+                        }
+                        composable("log") { 
+                            ActivityLogScreen(
+                                onBack = { navController.popBackStack() },
+                                repository = repository
+                            ) 
+                        }
                     }
                 }
             }
@@ -123,26 +117,17 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshPermissions()
-        requestMissingPermissions()
         startBackgroundService()
     }
 
     private fun refreshPermissions() {
-        accessibilityGranted = isAccessibilityEnabled()
-        notificationGranted = isNotificationListenerEnabled()
-        overlayGranted = Settings.canDrawOverlays(this)
-        microphoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        phoneStateGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun requestMissingPermissions() {
-        if (!microphoneGranted) micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        else if (!phoneStateGranted) phonePermLauncher.launch(Manifest.permission.READ_PHONE_STATE)
-        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
+        permsStatus = mapOf(
+            "accessibility" to isAccessibilityEnabled(),
+            "notification" to isNotificationListenerEnabled(),
+            "overlay" to Settings.canDrawOverlays(this),
+            "microphone" to (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
+            "phone" to (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED)
+        )
     }
 
     private fun isAccessibilityEnabled(): Boolean {

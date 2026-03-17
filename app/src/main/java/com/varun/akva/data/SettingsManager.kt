@@ -11,6 +11,10 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean("master_voice_enabled", true)
         set(value) = prefs.edit().putBoolean("master_voice_enabled", value).apply()
 
+    var nightModeEnabled: Boolean
+        get() = prefs.getBoolean("night_mode_enabled", true)
+        set(value) = prefs.edit().putBoolean("night_mode_enabled", value).apply()
+
     var voicePersonality: String
         get() = prefs.getString("voice_personality", "Warm") ?: "Warm"
         set(value) = prefs.edit().putString("voice_personality", value).apply()

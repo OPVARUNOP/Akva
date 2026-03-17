@@ -11,5 +11,5 @@ data class AppUsageEvent(
     val durationMillis: Long? = null,
     val isNightUsage: Boolean = false,
     val stressScore: Int = 0,
-    val spokenText: String = ""
+    val aiResponse: String = ""
 )

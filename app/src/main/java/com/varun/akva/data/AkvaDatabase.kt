@@ -7,19 +7,23 @@ import androidx.room.RoomDatabase
 
 @Database(entities = [AppUsageEvent::class, AppPersonality::class], version = 1, exportSchema = false)
 abstract class AkvaDatabase : RoomDatabase() {
-    abstract fun appUsageDao(): AppUsageDao
-    abstract fun appPersonalityDao(): AppPersonalityDao
+
+    abstract fun usageDao(): AppUsageDao
+    abstract fun personalityDao(): AppPersonalityDao
 
     companion object {
-        @Volatile private var instance: AkvaDatabase? = null
+        @Volatile
+        private var INSTANCE: AkvaDatabase? = null
 
-        fun getInstance(context: Context): AkvaDatabase {
-            return instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder(
+        fun getDatabase(context: Context): AkvaDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AkvaDatabase::class.java,
                     "akva_database"
-                ).fallbackToDestructiveMigration().build().also { instance = it }
+                ).fallbackToDestructiveMigration().build()
+                INSTANCE = instance
+                instance
             }
         }
     }

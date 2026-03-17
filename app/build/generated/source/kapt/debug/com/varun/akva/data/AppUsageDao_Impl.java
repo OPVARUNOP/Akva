@@ -42,7 +42,7 @@ public final class AppUsageDao_Impl implements AppUsageDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `app_usage_events` (`id`,`packageName`,`timestamp`,`durationMillis`,`isNightUsage`,`stressScore`,`spokenText`) VALUES (nullif(?, 0),?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `app_usage_events` (`id`,`packageName`,`timestamp`,`durationMillis`,`isNightUsage`,`stressScore`,`aiResponse`) VALUES (nullif(?, 0),?,?,?,?,?,?)";
       }
 
       @Override
@@ -63,10 +63,10 @@ public final class AppUsageDao_Impl implements AppUsageDao {
         final int _tmp = entity.isNightUsage() ? 1 : 0;
         statement.bindLong(5, _tmp);
         statement.bindLong(6, entity.getStressScore());
-        if (entity.getSpokenText() == null) {
+        if (entity.getAiResponse() == null) {
           statement.bindNull(7);
         } else {
-          statement.bindString(7, entity.getSpokenText());
+          statement.bindString(7, entity.getAiResponse());
         }
       }
     };
@@ -145,7 +145,7 @@ public final class AppUsageDao_Impl implements AppUsageDao {
           final int _cursorIndexOfDurationMillis = CursorUtil.getColumnIndexOrThrow(_cursor, "durationMillis");
           final int _cursorIndexOfIsNightUsage = CursorUtil.getColumnIndexOrThrow(_cursor, "isNightUsage");
           final int _cursorIndexOfStressScore = CursorUtil.getColumnIndexOrThrow(_cursor, "stressScore");
-          final int _cursorIndexOfSpokenText = CursorUtil.getColumnIndexOrThrow(_cursor, "spokenText");
+          final int _cursorIndexOfAiResponse = CursorUtil.getColumnIndexOrThrow(_cursor, "aiResponse");
           final List<AppUsageEvent> _result = new ArrayList<AppUsageEvent>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final AppUsageEvent _item;
@@ -171,13 +171,13 @@ public final class AppUsageDao_Impl implements AppUsageDao {
             _tmpIsNightUsage = _tmp != 0;
             final int _tmpStressScore;
             _tmpStressScore = _cursor.getInt(_cursorIndexOfStressScore);
-            final String _tmpSpokenText;
-            if (_cursor.isNull(_cursorIndexOfSpokenText)) {
-              _tmpSpokenText = null;
+            final String _tmpAiResponse;
+            if (_cursor.isNull(_cursorIndexOfAiResponse)) {
+              _tmpAiResponse = null;
             } else {
-              _tmpSpokenText = _cursor.getString(_cursorIndexOfSpokenText);
+              _tmpAiResponse = _cursor.getString(_cursorIndexOfAiResponse);
             }
-            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpSpokenText);
+            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpAiResponse);
             _result.add(_item);
           }
           return _result;
@@ -209,7 +209,7 @@ public final class AppUsageDao_Impl implements AppUsageDao {
           final int _cursorIndexOfDurationMillis = CursorUtil.getColumnIndexOrThrow(_cursor, "durationMillis");
           final int _cursorIndexOfIsNightUsage = CursorUtil.getColumnIndexOrThrow(_cursor, "isNightUsage");
           final int _cursorIndexOfStressScore = CursorUtil.getColumnIndexOrThrow(_cursor, "stressScore");
-          final int _cursorIndexOfSpokenText = CursorUtil.getColumnIndexOrThrow(_cursor, "spokenText");
+          final int _cursorIndexOfAiResponse = CursorUtil.getColumnIndexOrThrow(_cursor, "aiResponse");
           final List<AppUsageEvent> _result = new ArrayList<AppUsageEvent>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final AppUsageEvent _item;
@@ -235,13 +235,13 @@ public final class AppUsageDao_Impl implements AppUsageDao {
             _tmpIsNightUsage = _tmp != 0;
             final int _tmpStressScore;
             _tmpStressScore = _cursor.getInt(_cursorIndexOfStressScore);
-            final String _tmpSpokenText;
-            if (_cursor.isNull(_cursorIndexOfSpokenText)) {
-              _tmpSpokenText = null;
+            final String _tmpAiResponse;
+            if (_cursor.isNull(_cursorIndexOfAiResponse)) {
+              _tmpAiResponse = null;
             } else {
-              _tmpSpokenText = _cursor.getString(_cursorIndexOfSpokenText);
+              _tmpAiResponse = _cursor.getString(_cursorIndexOfAiResponse);
             }
-            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpSpokenText);
+            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpAiResponse);
             _result.add(_item);
           }
           return _result;
@@ -279,7 +279,7 @@ public final class AppUsageDao_Impl implements AppUsageDao {
           final int _cursorIndexOfDurationMillis = CursorUtil.getColumnIndexOrThrow(_cursor, "durationMillis");
           final int _cursorIndexOfIsNightUsage = CursorUtil.getColumnIndexOrThrow(_cursor, "isNightUsage");
           final int _cursorIndexOfStressScore = CursorUtil.getColumnIndexOrThrow(_cursor, "stressScore");
-          final int _cursorIndexOfSpokenText = CursorUtil.getColumnIndexOrThrow(_cursor, "spokenText");
+          final int _cursorIndexOfAiResponse = CursorUtil.getColumnIndexOrThrow(_cursor, "aiResponse");
           final List<AppUsageEvent> _result = new ArrayList<AppUsageEvent>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final AppUsageEvent _item;
@@ -305,13 +305,13 @@ public final class AppUsageDao_Impl implements AppUsageDao {
             _tmpIsNightUsage = _tmp != 0;
             final int _tmpStressScore;
             _tmpStressScore = _cursor.getInt(_cursorIndexOfStressScore);
-            final String _tmpSpokenText;
-            if (_cursor.isNull(_cursorIndexOfSpokenText)) {
-              _tmpSpokenText = null;
+            final String _tmpAiResponse;
+            if (_cursor.isNull(_cursorIndexOfAiResponse)) {
+              _tmpAiResponse = null;
             } else {
-              _tmpSpokenText = _cursor.getString(_cursorIndexOfSpokenText);
+              _tmpAiResponse = _cursor.getString(_cursorIndexOfAiResponse);
             }
-            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpSpokenText);
+            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpAiResponse);
             _result.add(_item);
           }
           return _result;
@@ -427,7 +427,7 @@ public final class AppUsageDao_Impl implements AppUsageDao {
           final int _cursorIndexOfDurationMillis = CursorUtil.getColumnIndexOrThrow(_cursor, "durationMillis");
           final int _cursorIndexOfIsNightUsage = CursorUtil.getColumnIndexOrThrow(_cursor, "isNightUsage");
           final int _cursorIndexOfStressScore = CursorUtil.getColumnIndexOrThrow(_cursor, "stressScore");
-          final int _cursorIndexOfSpokenText = CursorUtil.getColumnIndexOrThrow(_cursor, "spokenText");
+          final int _cursorIndexOfAiResponse = CursorUtil.getColumnIndexOrThrow(_cursor, "aiResponse");
           final List<AppUsageEvent> _result = new ArrayList<AppUsageEvent>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final AppUsageEvent _item;
@@ -453,13 +453,13 @@ public final class AppUsageDao_Impl implements AppUsageDao {
             _tmpIsNightUsage = _tmp != 0;
             final int _tmpStressScore;
             _tmpStressScore = _cursor.getInt(_cursorIndexOfStressScore);
-            final String _tmpSpokenText;
-            if (_cursor.isNull(_cursorIndexOfSpokenText)) {
-              _tmpSpokenText = null;
+            final String _tmpAiResponse;
+            if (_cursor.isNull(_cursorIndexOfAiResponse)) {
+              _tmpAiResponse = null;
             } else {
-              _tmpSpokenText = _cursor.getString(_cursorIndexOfSpokenText);
+              _tmpAiResponse = _cursor.getString(_cursorIndexOfAiResponse);
             }
-            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpSpokenText);
+            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpAiResponse);
             _result.add(_item);
           }
           return _result;
@@ -491,7 +491,7 @@ public final class AppUsageDao_Impl implements AppUsageDao {
           final int _cursorIndexOfDurationMillis = CursorUtil.getColumnIndexOrThrow(_cursor, "durationMillis");
           final int _cursorIndexOfIsNightUsage = CursorUtil.getColumnIndexOrThrow(_cursor, "isNightUsage");
           final int _cursorIndexOfStressScore = CursorUtil.getColumnIndexOrThrow(_cursor, "stressScore");
-          final int _cursorIndexOfSpokenText = CursorUtil.getColumnIndexOrThrow(_cursor, "spokenText");
+          final int _cursorIndexOfAiResponse = CursorUtil.getColumnIndexOrThrow(_cursor, "aiResponse");
           final List<AppUsageEvent> _result = new ArrayList<AppUsageEvent>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final AppUsageEvent _item;
@@ -517,13 +517,13 @@ public final class AppUsageDao_Impl implements AppUsageDao {
             _tmpIsNightUsage = _tmp != 0;
             final int _tmpStressScore;
             _tmpStressScore = _cursor.getInt(_cursorIndexOfStressScore);
-            final String _tmpSpokenText;
-            if (_cursor.isNull(_cursorIndexOfSpokenText)) {
-              _tmpSpokenText = null;
+            final String _tmpAiResponse;
+            if (_cursor.isNull(_cursorIndexOfAiResponse)) {
+              _tmpAiResponse = null;
             } else {
-              _tmpSpokenText = _cursor.getString(_cursorIndexOfSpokenText);
+              _tmpAiResponse = _cursor.getString(_cursorIndexOfAiResponse);
             }
-            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpSpokenText);
+            _item = new AppUsageEvent(_tmpId,_tmpPackageName,_tmpTimestamp,_tmpDurationMillis,_tmpIsNightUsage,_tmpStressScore,_tmpAiResponse);
             _result.add(_item);
           }
           return _result;
