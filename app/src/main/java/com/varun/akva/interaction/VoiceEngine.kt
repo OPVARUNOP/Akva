@@ -20,14 +20,20 @@ class VoiceEngine(private val context: Context) {
     private var onSpeechDoneCallback: (() -> Unit)? = null
     private val pendingQueue = mutableListOf<PendingSpeak>()
 
+    // Track whether we're speaking a conversation response (don't interrupt these)
+    @Volatile
+    var isSpeakingConversation = false
+        private set
+
     private data class PendingSpeak(val text: String, val config: VoiceConfig, val isWhisper: Boolean)
 
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val result = tts?.setLanguage(Locale.US)
-                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    tts?.setLanguage(Locale.getDefault())
+                // Try device locale first, fall back to US English
+                val localeResult = tts?.setLanguage(Locale.getDefault())
+                if (localeResult == TextToSpeech.LANG_MISSING_DATA || localeResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.setLanguage(Locale.US)
                 }
                 isInitialized = true
 
@@ -36,10 +42,16 @@ class VoiceEngine(private val context: Context) {
                         onSpeechStartCallback?.invoke()
                     }
                     override fun onDone(utteranceId: String?) {
+                        if (utteranceId?.startsWith("conv_") == true) {
+                            isSpeakingConversation = false
+                        }
                         onSpeechDoneCallback?.invoke()
                     }
                     @Deprecated("Deprecated in Java")
                     override fun onError(utteranceId: String?) {
+                        if (utteranceId?.startsWith("conv_") == true) {
+                            isSpeakingConversation = false
+                        }
                         onSpeechDoneCallback?.invoke()
                     }
                 })
@@ -55,6 +67,10 @@ class VoiceEngine(private val context: Context) {
 
     fun speak(text: String, config: VoiceConfig, isWhisper: Boolean = false) {
         if (text.isBlank()) return
+
+        // Don't interrupt conversation responses with proactive speech
+        if (isSpeakingConversation) return
+
         if (!isInitialized) {
             pendingQueue.add(PendingSpeak(text, config, isWhisper))
             handler.postDelayed({ processPendingQueue() }, 1000)
@@ -66,11 +82,12 @@ class VoiceEngine(private val context: Context) {
             tts?.setSpeechRate(config.speechRate)
 
             val params = Bundle()
-            val volume = if (isWhisper) 0.35f else 1.0f
+            val volume = if (isWhisper) 0.4f else 1.0f
             params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume)
 
             val utteranceId = UUID.randomUUID().toString()
-            tts?.speak(text, TextToSpeech.QUEUE_ADD, params, utteranceId)
+            // QUEUE_FLUSH — new speech always interrupts old proactive speech
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         } catch (e: Exception) {
             Log.e(TAG, "Speak error: ${e.message}")
         }
@@ -86,14 +103,17 @@ class VoiceEngine(private val context: Context) {
 
         try {
             stop()
+            isSpeakingConversation = true
             tts?.setPitch(config.pitch)
             tts?.setSpeechRate(config.speechRate)
 
             val params = Bundle()
-            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, if (isWhisper) 0.35f else 1.0f)
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, if (isWhisper) 0.4f else 1.0f)
 
-            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, UUID.randomUUID().toString())
+            val utteranceId = "conv_${UUID.randomUUID()}"
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         } catch (e: Exception) {
+            isSpeakingConversation = false
             Log.e(TAG, "SpeakImmediate error: ${e.message}")
         }
     }
@@ -106,7 +126,7 @@ class VoiceEngine(private val context: Context) {
             tts?.setSpeechRate(config.speechRate)
 
             val params = Bundle()
-            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, if (isWhisper) 0.35f else 1.0f)
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, if (isWhisper) 0.4f else 1.0f)
 
             lines.forEachIndexed { index, line ->
                 if (index > 0) {
@@ -126,7 +146,12 @@ class VoiceEngine(private val context: Context) {
         items.forEach { speak(it.text, it.config, it.isWhisper) }
     }
 
-    fun stop() { try { tts?.stop() } catch (_: Exception) {} }
+    fun stop() {
+        try {
+            isSpeakingConversation = false
+            tts?.stop()
+        } catch (_: Exception) {}
+    }
 
     fun isSpeaking(): Boolean = try { tts?.isSpeaking == true } catch (_: Exception) { false }
 
@@ -139,6 +164,7 @@ class VoiceEngine(private val context: Context) {
             tts?.shutdown()
             tts = null
             isInitialized = false
+            isSpeakingConversation = false
         } catch (_: Exception) {}
     }
 

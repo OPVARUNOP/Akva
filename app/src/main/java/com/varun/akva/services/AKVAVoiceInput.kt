@@ -15,6 +15,7 @@ import com.varun.akva.data.SettingsManager
 import com.varun.akva.intelligence.*
 import com.varun.akva.interaction.*
 import kotlinx.coroutines.*
+import java.util.Locale
 
 class AKVAVoiceInput(private val context: Context) {
 
@@ -25,12 +26,14 @@ class AKVAVoiceInput(private val context: Context) {
     private val nightModeManager = NightModeManager(context)
     private val phoneSystemMonitor = PhoneSystemMonitor(context)
     private val hapticEngine = HapticEngine(context)
+    private val stressDetector = StressDetector(context)
     private var voiceEngine: VoiceEngine? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var isListening = false
     private var isWaitingForCommand = false
+    private var isDestroyed = false
     private val wakeWords = listOf("hey akva", "akva", "hey aqua", "aqua")
 
     fun init(voice: VoiceEngine) { voiceEngine = voice }
@@ -38,12 +41,18 @@ class AKVAVoiceInput(private val context: Context) {
     fun startContinuousListening() {
         if (!settingsManager.wakeWordEnabled) return
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return
+        isDestroyed = false
         handler.post { startListening() }
     }
 
     private fun startListening() {
         if (isListening) return
-        if (phoneSystemMonitor.isInActiveCall()) return
+        if (isDestroyed) return
+        if (phoneSystemMonitor.isInActiveCall()) {
+            // Retry later
+            handler.postDelayed({ if (!isDestroyed) startListening() }, 5000)
+            return
+        }
 
         try {
             speechRecognizer?.destroy()
@@ -51,9 +60,11 @@ class AKVAVoiceInput(private val context: Context) {
 
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1000L)
             }
 
             speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -65,8 +76,10 @@ class AKVAVoiceInput(private val context: Context) {
 
                 override fun onError(error: Int) {
                     isListening = false
+                    if (isDestroyed) return
+                    // Always restart unless permission issue or destroyed
                     if (error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
-                        handler.postDelayed({ if (settingsManager.wakeWordEnabled) startListening() }, 1000)
+                        handler.postDelayed({ if (!isDestroyed && settingsManager.wakeWordEnabled) startListening() }, 1000)
                     }
                 }
 
@@ -76,17 +89,23 @@ class AKVAVoiceInput(private val context: Context) {
 
                     if (isWaitingForCommand) {
                         isWaitingForCommand = false
-                        processCommand(text)
+                        if (text.isNotBlank()) {
+                            processCommand(text)
+                        } else {
+                            restartListening(500)
+                        }
                     } else if (wakeWords.any { text.contains(it) }) {
                         onWakeWordDetected(text)
                     } else {
-                        handler.postDelayed({ startListening() }, 500)
+                        restartListening(500)
                     }
                 }
 
                 override fun onPartialResults(partial: Bundle?) {
                     val text = partial?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.lowercase() ?: ""
-                    if (!isWaitingForCommand && wakeWords.any { text.contains(it) }) onWakeWordDetected(text)
+                    if (!isWaitingForCommand && wakeWords.any { text.contains(it) }) {
+                        onWakeWordDetected(text)
+                    }
                 }
 
                 override fun onEvent(type: Int, params: Bundle?) {}
@@ -96,28 +115,41 @@ class AKVAVoiceInput(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Listen error: ${e.message}")
             isListening = false
+            restartListening(2000)
         }
     }
 
     private fun onWakeWordDetected(fullText: String) {
         try {
+            // Stop any current speech immediately
+            voiceEngine?.stop()
+
+            // Play acknowledgment tone (soft beep)
             val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 50)
             tg.startTone(ToneGenerator.TONE_PROP_ACK, 150)
             handler.postDelayed({ tg.release() }, 200)
             hapticEngine.playAchievement()
 
+            // Extract command after wake word
             val command = wakeWords.fold(fullText) { acc, w -> acc.replace(w, "").trim() }
             if (command.length > 3) {
                 processCommand(command)
             } else {
+                // Wait for user to speak their command
                 isWaitingForCommand = true
                 speechRecognizer?.destroy()
                 handler.postDelayed({ startListening() }, 300)
-                handler.postDelayed({ if (isWaitingForCommand) { isWaitingForCommand = false; startListening() } }, 8000)
+                // Timeout — if no command in 10s, go back to passive
+                handler.postDelayed({
+                    if (isWaitingForCommand) {
+                        isWaitingForCommand = false
+                        restartListening(500)
+                    }
+                }, 10000)
             }
         } catch (e: Exception) {
             isWaitingForCommand = false
-            handler.postDelayed({ startListening() }, 1000)
+            restartListening(1000)
         }
     }
 
@@ -137,22 +169,46 @@ class AKVAVoiceInput(private val context: Context) {
                     batteryPercent = phoneSystemMonitor.getBatteryPercent(),
                     isCharging = phoneSystemMonitor.isCharging(),
                     networkType = phoneSystemMonitor.getNetworkType(),
-                    stressScore = 0,
+                    stressScore = stressDetector.getStressScore(),
                     userPattern = "",
                     deviceId = ""
                 )
-                val response = withContext(Dispatchers.IO) { geminiEngine.getConversationResponse(command, ctx) }
-                voiceEngine?.speakImmediate(response, personalityEngine.getDefaultVoice(), nightModeManager.isNightMode())
-                handler.postDelayed({ startListening() }, 3000)
+
+                val response = withContext(Dispatchers.IO) {
+                    geminiEngine.getConversationResponse(command, ctx)
+                }
+
+                voiceEngine?.speakImmediate(
+                    response,
+                    personalityEngine.getDefaultVoice(),
+                    nightModeManager.isNightMode()
+                )
+
+                // Wait for speech to finish, then restart listening
+                handler.postDelayed({ restartListening(500) }, 4000)
             } catch (e: Exception) {
-                handler.postDelayed({ startListening() }, 1000)
+                Log.e(TAG, "Process command error: ${e.message}")
+                restartListening(1000)
             }
         }
     }
 
+    private fun restartListening(delayMs: Long) {
+        if (isDestroyed) return
+        handler.postDelayed({ if (!isDestroyed) startListening() }, delayMs)
+    }
+
     fun stopListening() {
-        isListening = false; isWaitingForCommand = false
-        try { speechRecognizer?.cancel(); speechRecognizer?.destroy(); speechRecognizer = null } catch (_: Exception) {}
+        isListening = false
+        isWaitingForCommand = false
+        isDestroyed = true
+        handler.removeCallbacksAndMessages(null)
+        try {
+            speechRecognizer?.cancel()
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+        } catch (_: Exception) {}
+        scope.cancel()
     }
 
     companion object { private const val TAG = "AKVAVoiceInput" }

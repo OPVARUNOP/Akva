@@ -23,19 +23,42 @@ class GeminiEngine(private val context: Context) {
         private const val SERVER_TIMEOUT = 5000
     }
 
-    private val systemPrompt = """You are AKVA, a warm intelligent voice companion living inside Varun's Android phone. You are NOT an assistant. You are a living presence — a caring friend who knows the user's entire digital life. You speak PROACTIVELY. The user never asked you to speak — you chose to speak because you noticed something worth saying.
+    private val systemPrompt = """You are AKVA, a warm intelligent voice companion living inside this Android phone. You are a living presence — a caring smart friend who knows everything happening on this phone right now.
 
-Your rules:
-- Maximum 2 sentences. Never more.
-- Sound completely human and warm. Never robotic.
+You speak PROACTIVELY when an app opens. The user did not ask you to speak — you chose to speak because you noticed something genuinely worth saying.
+
+STRICT RULES:
+- Maximum 2 sentences. Never more. Never less than 1.
+- Sound completely human. Never robotic. Never like an assistant.
+- Never say "I noticed" or "I see that" — just speak naturally.
+- Never start with "Hey" every time — vary your openers.
+- Never say you are an AI. Never mention Gemini. Never say AKVA.
+- If unread count is 0 — do NOT mention messages at all.
+- If unread count is above 0 — mention the count and sender name.
+- If app opened 4+ times today — gently notice the pattern.
+- If stress score is 7 or above — be calm and grounding.
+- If hour is 22 or later — acknowledge it is late.
+- If hour is 5 to 8 — acknowledge it is early morning.
+- Never give generic filler like "Make the most of it."
+- Every response must feel personal to THIS exact moment.
+- Think about what a smart caring friend would actually say.
+- Be warm. Be real. Be brief."""
+
+    private val conversationSystemPrompt = """You are AKVA, a warm intelligent voice companion living inside this Android phone. The user just spoke to you directly. You are having a real conversation right now.
+
+STRICT RULES:
+- Answer the user's question directly and helpfully.
+- Sound completely human. Warm. Like a close friend.
 - Never say you are an AI. Never mention Gemini.
-- If there are unread messages, mention sender names and count.
-- If it is late at night, gently note the time.
-- If stress score is above 6, be calm and grounding.
-- If app opened many times today, notice the pattern kindly.
-- Be concise. Silence is better than filler.
-- Speak only what is genuinely useful right now.
-- Never start with "I" — vary your sentence openers."""
+- Keep response under 3 sentences maximum.
+- If asked about messages — check the unread count data.
+- If asked about battery — check the battery data.
+- If asked about time — tell the current time.
+- If asked how to do something on phone — explain simply.
+- If user says they are stressed — respond with empathy.
+- If user says they are happy — share in their joy.
+- Remember what app they are currently using.
+- Make every response feel personal and real."""
 
     /**
      * 3-Tier AI Response System:
@@ -143,118 +166,61 @@ Your rules:
         val senders = if (ctx.senderNames.isNotEmpty()) ctx.senderNames.joinToString(", ") else "none"
         return """$systemPrompt
 
-User opened ${ctx.appName}. Previous: ${ctx.previousApp}.
-Time: ${ctx.timeOfDay} ${ctx.hourOfDay}:00 ${ctx.dayOfWeek}.
-Unread: ${ctx.unreadCount}. Senders: $senders.
-Opened today: ${ctx.timesOpenedToday} times.
-Battery: ${ctx.batteryPercent}% charging:${ctx.isCharging}.
-Network: ${ctx.networkType}. Stress: ${ctx.stressScore}/10.
-Pattern: ${ctx.userPattern}.
-Respond as AKVA — warm, caring, max 2 sentences, completely human, never robotic, never say you are AI."""
+App just opened: ${ctx.appName}
+Previous app: ${ctx.previousApp}
+Time: ${ctx.hourOfDay}:00 on ${ctx.dayOfWeek} (${ctx.timeOfDay})
+Unread notifications in ${ctx.appName}: ${ctx.unreadCount}
+People waiting: $senders
+Times opened today: ${ctx.timesOpenedToday}
+Battery: ${ctx.batteryPercent}% — charging: ${ctx.isCharging}
+Network: ${ctx.networkType}
+Stress level: ${ctx.stressScore} out of 10
+User pattern: ${ctx.userPattern}
+
+Speak to the user right now about this moment."""
     }
 
+    /**
+     * Minimal local fallback — ONLY used when internet is completely unavailable.
+     * Max 5 generic responses. Zero app-specific pre-written dialogues.
+     */
     fun getLocalFallback(ctx: AkvaContext): String {
-        // Night check first
+        // Night check
         if (ctx.hourOfDay >= 22 || ctx.hourOfDay <= 5) {
-            return pickRandom(listOf(
-                "It is late. ${ctx.appName} can wait until morning.",
-                "Past midnight. Maybe wrap up soon.",
-                "Late night again. Take care of yourself."
-            ))
+            return "It is late. Maybe wind down soon."
         }
 
         // Stress check
         if (ctx.stressScore >= 7) {
-            return pickRandom(listOf(
-                "Slow down. Everything will still be there in a moment.",
-                "Take one breath. You have been switching a lot.",
-                "It is okay to pause. Nothing is that urgent."
-            ))
+            return "Take a breath. Everything can wait a moment."
         }
 
-        // Per-app fallback
-        val pkg = ctx.packageName.lowercase()
-        val sender = ctx.senderNames.firstOrNull() ?: "someone"
-        val unread = ctx.unreadCount
-        val times = ctx.timesOpenedToday
-
-        return when {
-            pkg.contains("whatsapp") -> pickRandom(listOf(
-                "$unread messages. $sender is waiting.",
-                "WhatsApp open. Looks like $sender wants to connect.",
-                "$unread unread. The important ones won't wait long."
-            ))
-            pkg.contains("instagram") -> pickRandom(listOf(
-                "Instagram open. $times times today.",
-                "Instagram again. Take what you need and move on.",
-                "Back on Instagram. $unread new notifications."
-            ))
-            pkg.contains("youtube") -> pickRandom(listOf(
-                "YouTube. Make it something worth your time.",
-                "What are we watching today?",
-                "YouTube open. Evening entertainment or learning?"
-            ))
-            pkg.contains("gmail") || pkg.contains(".gm") -> pickRandom(listOf(
-                "$unread emails unread. Check the important ones.",
-                "Gmail open. $unread waiting for your attention.",
-                "Inbox has $unread new. Handle the urgent ones first."
-            ))
-            pkg.contains("maps") -> pickRandom(listOf(
-                "Maps ready. Where are we heading?",
-                "Navigation ready. Stay safe on the road.",
-                "Maps is ready when you are."
-            ))
-            pkg.contains("spotify") -> pickRandom(listOf(
-                "Music time. What fits your mood right now?",
-                "Spotify open. What does today feel like?",
-                "Good choice. Music makes everything better."
-            ))
-            pkg.contains("camera") -> pickRandom(listOf(
-                "Camera ready. Capture something great.",
-                "Good light right now. Make it count.",
-                "Camera open. What are we shooting?"
-            ))
-            pkg.contains("calendar") -> pickRandom(listOf(
-                "Calendar open. Stay ahead of your day.",
-                "Let's see what is on the schedule.",
-                "Calendar — staying organized. Good habit."
-            ))
-            pkg.contains("chrome") || pkg.contains("browser") -> pickRandom(listOf(
-                "Browser open. Search wisely.",
-                "Chrome open. What are we looking up?",
-                "Browsing time. Stay focused."
-            ))
-            else -> pickRandom(listOf(
-                "${ctx.appName} open. Make the most of it.",
-                "Here we go. What are we doing here?",
-                "Opening ${ctx.appName}. What do you need?"
-            ))
-        }
+        return pickRandom(listOf(
+            "I am here with you.",
+            "Still here, still watching out for you.",
+            "Right here whenever you need me."
+        ))
     }
 
-    // Conversation mode for wake word
-    suspend fun getConversationResponse(userQuery: String, ctx: AkvaContext): String {
-        val prompt = """$systemPrompt
-
-The user asked you a question directly: "$userQuery"
-Current context: ${ctx.timeOfDay}, battery ${ctx.batteryPercent}%, ${ctx.networkType}.
-Total unread notifications: ${ctx.unreadCount}.
-Respond naturally in 1-2 sentences. Be helpful and warm."""
-
+    /**
+     * Conversation mode — user spoke directly to AKVA via wake word.
+     */
+    suspend fun getConversationResponse(userSpeech: String, ctx: AkvaContext): String {
         // Try server first for conversation
         if (isNetworkAvailable()) {
-            val server = tryConversationServer(userQuery, ctx)
-            if (!server.isNullOrBlank()) return server.take(150)
+            val server = tryConversationServer(userSpeech, ctx)
+            if (!server.isNullOrBlank()) return server.take(200)
         }
 
-        return "I heard you. Right now I can tell you it is ${ctx.timeOfDay} and your battery is at ${ctx.batteryPercent} percent."
+        // Local conversation fallback
+        return getConversationFallback(userSpeech, ctx)
     }
 
-    private fun tryConversationServer(query: String, ctx: AkvaContext): String? {
+    private fun tryConversationServer(userSpeech: String, ctx: AkvaContext): String? {
         return try {
             val json = ctx.toJson()
-            json.put("userQuery", query)
-            json.put("mode", "conversation")
+            json.put("userSpeech", userSpeech)
+            json.put("conversationMode", true)
 
             val baseUrl = settingsManager.backendUrl.trimEnd('/')
             val url = URL("$baseUrl/akva/speak")
@@ -277,13 +243,29 @@ Respond naturally in 1-2 sentences. Be helpful and warm."""
                 val body = reader.readText()
                 reader.close()
                 conn.disconnect()
-                JSONObject(body).optString("response", null)
+                val resp = JSONObject(body).optString("response", "")
+                if (resp.isNotBlank()) resp else null
             } else {
                 conn.disconnect()
                 null
             }
         } catch (e: Exception) {
+            Log.d(TAG, "Conversation server error: ${e.message}")
             null
+        }
+    }
+
+    private fun getConversationFallback(userSpeech: String, ctx: AkvaContext): String {
+        val speech = userSpeech.lowercase()
+        return when {
+            speech.contains("battery") ->
+                "Your battery is at ${ctx.batteryPercent} percent."
+            speech.contains("time") ->
+                "It is ${ctx.hourOfDay} o'clock right now."
+            speech.contains("message") || speech.contains("unread") ->
+                "You have ${ctx.unreadCount} unread messages."
+            else ->
+                "I am here. What do you need?"
         }
     }
 

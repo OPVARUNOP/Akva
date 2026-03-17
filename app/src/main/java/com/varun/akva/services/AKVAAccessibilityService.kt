@@ -3,6 +3,7 @@ package com.varun.akva.services
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.os.BatteryManager
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -33,16 +34,40 @@ class AKVAAccessibilityService : AccessibilityService() {
     private lateinit var settingsManager: SettingsManager
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private var lastSpeechTime = 0L
+    private var lastSpeechTime = 0L // elapsedRealtime
     private var lastPackage = ""
     private val usageCounts = mutableMapOf<String, Int>()
+    private val lastSpeechPerApp = mutableMapOf<String, Long>() // per-app last speech elapsedRealtime
     private var deviceId = ""
 
     companion object {
         private const val TAG = "AKVAAccessibility"
-        private const val MIN_SPEECH_GAP_MS = 2500L
+        private const val MIN_SPEECH_GAP_MS = 3000L
+        private const val REPEAT_APP_COOLDOWN_MS = 10 * 60 * 1000L // 10 minutes
         var isRunning = false
             private set
+
+        // Packages that should always be silent
+        private val SILENT_PACKAGES = setOf(
+            "com.android.systemui",
+            "com.android.launcher",
+            "com.android.launcher3",
+            "com.oppo.launcher",
+            "com.oneplus.launcher",
+            "com.sec.android.app.launcher",
+            "com.miui.home",
+            "com.huawei.android.launcher",
+            "android"
+        )
+
+        // Video call apps — total silence during calls
+        private val VIDEO_CALL_PACKAGES = setOf(
+            "us.zoom.videomeetings",
+            "com.google.android.apps.meetings",
+            "com.microsoft.teams",
+            "com.skype.raider",
+            "com.discord"
+        )
     }
 
     override fun onServiceConnected() {
@@ -104,14 +129,25 @@ class AKVAAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         val className = event.className?.toString() ?: ""
 
-        // Skip noise
+        // === SILENCE CHECK ===
+        // Skip our own app
         if (packageName == "com.varun.akva") return
-        if (packageName == "com.android.systemui") return
-        if (packageName == "android") return
-        if (packageName.contains("launcher")) return
 
-        // Privacy gate
+        // Skip known silent packages
+        if (SILENT_PACKAGES.contains(packageName)) return
+
+        // Skip any launcher or systemui package
+        if (packageName.contains("launcher", ignoreCase = true)) return
+        if (packageName.contains("systemui", ignoreCase = true)) return
+
+        // Skip settings unless settings guide is active
+        if (contextDetector.isSettingsApp(packageName) && !settingsManager.settingsGuideEnabled) return
+
+        // === RESTRICTED APPS — total silence ===
         if (contextDetector.isRestrictedApp(packageName)) return
+
+        // Video call apps — total silence
+        if (VIDEO_CALL_PACKAGES.contains(packageName)) return
 
         // Call gate
         if (phoneSystemMonitor.isInActiveCall()) return
@@ -120,12 +156,16 @@ class AKVAAccessibilityService : AccessibilityService() {
         val hour = contextDetector.getHourOfDay()
         if (settingsManager.isSilentHour(hour)) return
 
-        // Timing gate
-        val now = System.currentTimeMillis()
+        // === MINIMUM GAP — 3000ms between any two speech events ===
+        val now = SystemClock.elapsedRealtime()
         if (now - lastSpeechTime < MIN_SPEECH_GAP_MS) return
 
-        // Skip same app (unless settings)
-        if (packageName == lastPackage && !contextDetector.isSettingsApp(packageName)) return
+        // === REPEAT CHECK — same app within 10 minutes ===
+        val lastTimeForApp = lastSpeechPerApp[packageName] ?: 0L
+        if (packageName == lastPackage && (now - lastTimeForApp) < REPEAT_APP_COOLDOWN_MS) {
+            // Same app and within 10 minutes — skip unless it's settings with guide
+            if (!contextDetector.isSettingsApp(packageName)) return
+        }
 
         val previousApp = if (lastPackage.isNotEmpty()) contextDetector.getAppName(lastPackage) else ""
         lastPackage = packageName
@@ -156,7 +196,8 @@ class AKVAAccessibilityService : AccessibilityService() {
             if (guide.isNotBlank()) {
                 val vc = personalityEngine.getVoiceConfig(packageName, nightModeManager.isNightMode(), false)
                 voiceEngine.speak(guide, vc, nightModeManager.isNightMode())
-                lastSpeechTime = System.currentTimeMillis()
+                lastSpeechTime = SystemClock.elapsedRealtime()
+                lastSpeechPerApp[packageName] = lastSpeechTime
                 return
             }
         }
@@ -185,11 +226,16 @@ class AKVAAccessibilityService : AccessibilityService() {
             deviceId = deviceId
         )
 
-        val response = withContext(Dispatchers.IO) { geminiEngine.getResponse(ctx) }
+        var response = withContext(Dispatchers.IO) { geminiEngine.getResponse(ctx) }
+
+        // === QUALITY CHECK on AI response ===
+        response = qualityCheck(response, ctx)
 
         val vc = personalityEngine.getVoiceConfig(packageName, isNight, stressDetector.isStressed())
         voiceEngine.speak(response, vc, isNight)
-        lastSpeechTime = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
+        lastSpeechTime = now
+        lastSpeechPerApp[packageName] = now
 
         // Haptic
         if (stressDetector.isStressed()) hapticEngine.playStressPulse()
@@ -207,6 +253,34 @@ class AKVAAccessibilityService : AccessibilityService() {
         AKVANotificationListener.clearApp(packageName)
     }
 
+    /**
+     * Quality check on Gemini response:
+     * - If empty or <5 chars — use fallback
+     * - If contains "I am an AI" or "Gemini" — regenerate once, then fallback
+     */
+    private suspend fun qualityCheck(response: String, ctx: AkvaContext): String {
+        // Empty or too short
+        if (response.isBlank() || response.length < 5) {
+            return geminiEngine.getLocalFallback(ctx)
+        }
+
+        // Contains forbidden phrases — try regenerating once
+        val lower = response.lowercase()
+        if (lower.contains("i am an ai") || lower.contains("gemini") || lower.contains("i'm an ai")) {
+            Log.d(TAG, "Quality check failed — regenerating")
+            val retry = withContext(Dispatchers.IO) { geminiEngine.getResponse(ctx) }
+            val retryLower = retry.lowercase()
+            return if (retry.isBlank() || retry.length < 5 ||
+                retryLower.contains("i am an ai") || retryLower.contains("gemini") || retryLower.contains("i'm an ai")) {
+                geminiEngine.getLocalFallback(ctx)
+            } else {
+                retry
+            }
+        }
+
+        return response
+    }
+
     private suspend fun tryMorningBriefing() {
         if (!morningBriefing.shouldTrigger()) return
         val totalUnread = AKVANotificationListener.getTotalUnread()
@@ -222,7 +296,7 @@ class AKVAAccessibilityService : AccessibilityService() {
         voiceEngine.speakConversation(sentences, personalityEngine.getMorningVoice(), 1500L, nightModeManager.isNightMode())
         hapticEngine.playMorningPulse()
         morningBriefing.markDelivered()
-        lastSpeechTime = System.currentTimeMillis()
+        lastSpeechTime = SystemClock.elapsedRealtime()
         screenMoodEngine.applyMood(ScreenMoodEngine.Mood.MORNING_GOLD)
     }
 
@@ -232,7 +306,7 @@ class AKVAAccessibilityService : AccessibilityService() {
         voiceEngine.speakConversation(sentences, personalityEngine.getDefaultVoice(), 2000L, nightModeManager.isNightMode())
         hapticEngine.playAchievement()
         weeklyStoryEngine.markDelivered()
-        lastSpeechTime = System.currentTimeMillis()
+        lastSpeechTime = SystemClock.elapsedRealtime()
     }
 
     private fun getHashedDeviceId(): String {
