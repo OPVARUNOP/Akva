@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.varun.akva.app-mergeDebugResources-58:/values-nb/values-nb.xml",
+            "outputFile": "com.varun.akva.app-mergeDebugResources-59:/values-nb/values-nb.xml",
             "map": [
                 {
                     "source": "/home/vrn/.gradle/caches/transforms-3/113b94108af1641fa44b9e2bbbe14371/transformed/core-1.12.0/res/values-nb/values-nb.xml",

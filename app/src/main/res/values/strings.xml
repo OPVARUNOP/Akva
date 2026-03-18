@@ -1,4 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AKVA</string>
-    <string name="accessibility_service_description">AKVA gives your phone a voice. It speaks to you from every app, learns your patterns, and makes your phone feel alive. Created by Varun.</string>
+    <string name="accessibility_description">AKVA Living OS - Proactive AI automation and assistance.</string>
 </resources>

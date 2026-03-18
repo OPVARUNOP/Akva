@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.varun.akva.app-mergeDebugResources-58:/values-sq/values-sq.xml",
+            "outputFile": "com.varun.akva.app-mergeDebugResources-59:/values-sq/values-sq.xml",
             "map": [
                 {
                     "source": "/home/vrn/.gradle/caches/transforms-3/03626322b322c4df7dd23dbcc0d825ea/transformed/jetified-ui-release/res/values-sq/values-sq.xml",

@@ -1,3 +1,0 @@
-com.varun.akva.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme

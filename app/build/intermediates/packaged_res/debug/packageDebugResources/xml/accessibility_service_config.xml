@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeNotificationStateChanged|typeViewFocused"
-    android:accessibilityFeedbackType="feedbackSpoken|feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagReportViewIds|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewClicked|typeViewFocused|typeNotificationStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagReportViewIds|flagRequestFilterKeyEvents"
     android:canRetrieveWindowContent="true"
-    android:canRequestFilterKeyEvents="true"
-    android:canRequestEnhancedWebAccessibility="true"
-    android:description="@string/accessibility_service_description"
+    android:canPerformGestures="true"
+    android:description="@string/accessibility_description"
     android:notificationTimeout="50"
-    android:packageNames=""
     android:settingsActivity="com.varun.akva.MainActivity"/>

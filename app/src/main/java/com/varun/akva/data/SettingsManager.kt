@@ -1,90 +1,12 @@
 package com.varun.akva.data
-
 import android.content.Context
-import android.content.SharedPreferences
-
 class SettingsManager(context: Context) {
-
-    private val prefs: SharedPreferences = context.getSharedPreferences("akva_settings", Context.MODE_PRIVATE)
-
-    var masterVoiceEnabled: Boolean
-        get() = prefs.getBoolean("master_voice_enabled", true)
-        set(value) = prefs.edit().putBoolean("master_voice_enabled", value).apply()
-
-    var nightModeEnabled: Boolean
-        get() = prefs.getBoolean("night_mode_enabled", true)
-        set(value) = prefs.edit().putBoolean("night_mode_enabled", value).apply()
-
-    var voicePersonality: String
-        get() = prefs.getString("voice_personality", "Warm") ?: "Warm"
-        set(value) = prefs.edit().putString("voice_personality", value).apply()
-
-    var hapticEnabled: Boolean
-        get() = prefs.getBoolean("haptic_enabled", true)
-        set(value) = prefs.edit().putBoolean("haptic_enabled", value).apply()
-
-    var screenMoodEnabled: Boolean
-        get() = prefs.getBoolean("screen_mood_enabled", true)
-        set(value) = prefs.edit().putBoolean("screen_mood_enabled", value).apply()
-
-    var wakeWordEnabled: Boolean
-        get() = prefs.getBoolean("wake_word_enabled", true)
-        set(value) = prefs.edit().putBoolean("wake_word_enabled", value).apply()
-
-    var silentHourStart: Int
-        get() = prefs.getInt("silent_hour_start", 23)
-        set(value) = prefs.edit().putInt("silent_hour_start", value).apply()
-
-    var silentHourEnd: Int
-        get() = prefs.getInt("silent_hour_end", 7)
-        set(value) = prefs.edit().putInt("silent_hour_end", value).apply()
-
-    var backendUrl: String
-        get() = prefs.getString("backend_url", "https://web-production-d4aa5.up.railway.app") ?: "https://web-production-d4aa5.up.railway.app"
-        set(value) = prefs.edit().putString("backend_url", value).apply()
-
-    var lastMorningBriefingDate: String
-        get() = prefs.getString("last_morning_briefing_date", "") ?: ""
-        set(value) = prefs.edit().putString("last_morning_briefing_date", value).apply()
-
-    var lastWeeklyStoryDate: String
-        get() = prefs.getString("last_weekly_story_date", "") ?: ""
-        set(value) = prefs.edit().putString("last_weekly_story_date", value).apply()
-
-    var isFirstLaunch: Boolean
-        get() = prefs.getBoolean("first_launch", true)
-        set(value) = prefs.edit().putBoolean("first_launch", value).apply()
-
-    var morningBriefingEnabled: Boolean
-        get() = prefs.getBoolean("morning_briefing_enabled", true)
-        set(value) = prefs.edit().putBoolean("morning_briefing_enabled", value).apply()
-
-    var weeklyStoryEnabled: Boolean
-        get() = prefs.getBoolean("weekly_story_enabled", true)
-        set(value) = prefs.edit().putBoolean("weekly_story_enabled", value).apply()
-
-    var settingsGuideEnabled: Boolean
-        get() = prefs.getBoolean("settings_guide_enabled", true)
-        set(value) = prefs.edit().putBoolean("settings_guide_enabled", value).apply()
-
-    fun isSilentHour(hour: Int): Boolean {
-        return if (silentHourStart > silentHourEnd) {
-            hour >= silentHourStart || hour < silentHourEnd
-        } else {
-            hour in silentHourStart until silentHourEnd
-        }
-    }
-
-    fun getSearchApiKey(): String = prefs.getString("search_api_key", "") ?: ""
-    fun setSearchApiKey(value: String) = prefs.edit().putString("search_api_key", value).apply()
-
-    fun getSearchCx(): String = prefs.getString("search_cx", "") ?: ""
-    fun setSearchCx(value: String) = prefs.edit().putString("search_cx", value).apply()
-
-    fun clearLearnedData() {
-        prefs.edit()
-            .remove("last_morning_briefing_date")
-            .remove("last_weekly_story_date")
-            .apply()
-    }
+    private val p = context.getSharedPreferences("akva_settings", Context.MODE_PRIVATE)
+    var isVoiceEnabled: Boolean get() = p.getBoolean("v", true); set(v) = p.edit().putBoolean("v", v).apply()
+    var isWakeWordEnabled: Boolean get() = p.getBoolean("w", true); set(v) = p.edit().putBoolean("w", v).apply()
+    var isProactiveEnabled: Boolean get() = p.getBoolean("p", true); set(v) = p.edit().putBoolean("p", v).apply()
+    var backendUrl: String get() = p.getString("b", "https://web-production-d4aa5.up.railway.app") ?: ""; set(v) = p.edit().putString("b", v).apply()
+    var geminiApiKey: String get() = p.getString("g", "") ?: ""; set(v) = p.edit().putString("g", v).apply()
+    var searchApiKey: String get() = p.getString("sa", "") ?: ""; set(v) = p.edit().putString("sa", v).apply()
+    var searchCx: String get() = p.getString("scx", "") ?: ""; set(v) = p.edit().putString("scx", v).apply()
 }

@@ -1,6 +1,0 @@
-com.varun.akva.test.app-jetified-annotation-experimental-1.4.0-0 /home/vrn/.gradle/caches/transforms-3/147a7bf58bcdcb2db1bcfa1dee57b166/transformed/jetified-annotation-experimental-1.4.0/res
-com.varun.akva.test.app-jetified-core-1.5.0-1 /home/vrn/.gradle/caches/transforms-3/faa93c86e30fdebc30227bc9d41a1a78/transformed/jetified-core-1.5.0/res
-com.varun.akva.test.app-androidTest-2 /home/vrn/Desktop/AKVA/app/build/generated/res/resValues/androidTest/debug
-com.varun.akva.test.app-mergeDebugAndroidTestResources-3 /home/vrn/Desktop/AKVA/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
-com.varun.akva.test.app-mergeDebugAndroidTestResources-4 /home/vrn/Desktop/AKVA/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
-com.varun.akva.test.app-debugAndroidTest-5 /home/vrn/Desktop/AKVA/app/build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources

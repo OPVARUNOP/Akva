@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.varun.akva.app-mergeDebugResources-58:/values-fr-rCA/values-fr-rCA.xml",
+            "outputFile": "com.varun.akva.app-mergeDebugResources-59:/values-fr-rCA/values-fr-rCA.xml",
             "map": [
                 {
                     "source": "/home/vrn/.gradle/caches/transforms-3/a2ada51202376fcc3f254bf4e3d937ad/transformed/jetified-foundation-release/res/values-fr-rCA/values-fr-rCA.xml",
