@@ -165,6 +165,18 @@ Respond naturally."""
         return@withContext CommandResult.fromJson(response)
     }
 
+    suspend fun getResponse(prompt: String): String = withContext(Dispatchers.IO) {
+        if (!isNetworkAvailable()) return@withContext "I'm offline right now."
+
+        val json = JSONObject()
+        json.put("requestMode", "general")
+        json.put("userMessage", prompt)
+        json.put("systemPrompt", "You are AKVA. Be brief.")
+
+        val response = callBackend(json)
+        return@withContext response ?: "No response from system."
+    }
+
     private fun callBackend(payload: JSONObject): String? {
         return try {
             val baseUrl = settingsManager.backendUrl.trimEnd('/')

@@ -19,6 +19,15 @@
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-feature android:name="android.hardware.camera.flash" />
     <application
         android:name=".AKVAApplication"
@@ -69,6 +78,23 @@
             android:name=".services.AKVABackgroundService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
+
+        <service
+            android:name=".ui.FloatingBubbleService"
+            android:exported="false" />
+
+        <service
+            android:name=".services.AKVAListenerEngine"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <service
+            android:name=".services.AKVAReminderService"
+            android:exported="false" />
+
+        <service
+            android:name=".services.AKVAAutomationService"
+            android:exported="false" />
 
         <receiver
             android:name=".services.BootReceiver"

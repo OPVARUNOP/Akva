@@ -12,20 +12,26 @@ import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import com.varun.akva.data.AkvaDatabase
 import com.varun.akva.data.AkvaRepository
 import com.varun.akva.data.SettingsManager
 import com.varun.akva.services.AKVABackgroundService
 import com.varun.akva.ui.*
 import com.varun.akva.ui.theme.*
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -48,7 +54,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         val database = AkvaDatabase.getDatabase(this)
-        repository = AkvaRepository(database.usageDao(), database.personalityDao())
+        repository = AkvaRepository(
+            database.usageDao(), 
+            database.personalityDao(),
+            database.userProfileDao(),
+            database.conversationDao(),
+            database.actionHistoryDao()
+        )
         settingsManager = SettingsManager(this)
 
         refreshPermissions()
@@ -58,7 +70,43 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
 
                 Scaffold(
-                    containerColor = AkvaBlack
+                    containerColor = AkvaBlack,
+                    bottomBar = {
+                        val navBackStackEntry by navController.currentBackStackEntryAsState()
+                        val currentDestination = navBackStackEntry?.destination?.route
+                        if (currentDestination != "splash" && currentDestination != "permissions") {
+                            NavigationBar(containerColor = Color(0xFF00080D)) {
+                                NavigationBarItem(
+                                    selected = currentDestination == "home",
+                                    onClick = { navController.navigate("home") },
+                                    icon = { Icon(Icons.Default.Home, null) },
+                                    label = { Text("HOME", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                                    colors = NavigationBarItemDefaults.colors(selectedIconColor = AkvaBlue, unselectedIconColor = Color.Gray)
+                                )
+                                NavigationBarItem(
+                                    selected = currentDestination == "memory",
+                                    onClick = { navController.navigate("memory") },
+                                    icon = { Icon(Icons.Default.Person, null) },
+                                    label = { Text("MEMORY", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                                    colors = NavigationBarItemDefaults.colors(selectedIconColor = AkvaBlue, unselectedIconColor = Color.Gray)
+                                )
+                                NavigationBarItem(
+                                    selected = currentDestination == "actions",
+                                    onClick = { navController.navigate("actions") },
+                                    icon = { Icon(Icons.Default.Build, null) },
+                                    label = { Text("ACTIONS", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                                    colors = NavigationBarItemDefaults.colors(selectedIconColor = AkvaBlue, unselectedIconColor = Color.Gray)
+                                )
+                                NavigationBarItem(
+                                    selected = currentDestination == "settings",
+                                    onClick = { navController.navigate("settings") },
+                                    icon = { Icon(Icons.Default.Settings, null) },
+                                    label = { Text("CONFIG", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                                    colors = NavigationBarItemDefaults.colors(selectedIconColor = AkvaBlue, unselectedIconColor = Color.Gray)
+                                )
+                            }
+                        }
+                    }
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
@@ -73,12 +121,33 @@ class MainActivity : ComponentActivity() {
                             })
                         }
                         composable("home") {
-                            HomeScreen(
-                                onSetupClick = { navController.navigate("permissions") },
-                                onManualMicClick = { /* Will implement voice trigger later */ },
-                                onSettingsClick = { navController.navigate("settings") },
-                                onActivityLogClick = { navController.navigate("log") }
-                            )
+                            val history by produceState(initialValue = emptyList<com.varun.akva.data.ConversationMemory>()) {
+                                value = repository.getRecentConversations(10)
+                            }
+                            Column {
+                                HomeScreen(
+                                    onSetupClick = { navController.navigate("permissions") },
+                                    onManualMicClick = { /* Handled by listening engine */ },
+                                    onSettingsClick = { navController.navigate("settings") },
+                                    onActivityLogClick = { navController.navigate("log") }
+                                )
+                                ConversationPanel(history = history, currentTranscript = "")
+                            }
+                        }
+                        composable("memory") {
+                            val scope = rememberCoroutineScope()
+                            val profile by produceState(initialValue = null as com.varun.akva.data.UserProfile?) {
+                                value = repository.getUserProfile()
+                            }
+                            MemoryScreen(profile = profile, onUpdate = {
+                                scope.launch { repository.saveUserProfile(it) }
+                            })
+                        }
+                        composable("actions") {
+                            val actions by produceState(initialValue = emptyList<com.varun.akva.data.ActionHistory>()) {
+                                value = repository.getRecentActions(20)
+                            }
+                            ActionsScreen(actions = actions)
                         }
                         composable("permissions") {
                             PermissionsScreen(
@@ -97,16 +166,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("settings") { 
-                            SettingsScreen(
-                                onBack = { navController.popBackStack() },
-                                settingsManager = settingsManager
-                            ) 
+                            SettingsScreen(onBack = { navController.popBackStack() }, settingsManager = settingsManager) 
                         }
                         composable("log") { 
-                            ActivityLogScreen(
-                                onBack = { navController.popBackStack() },
-                                repository = repository
-                            ) 
+                            ActivityLogScreen(onBack = { navController.popBackStack() }, repository = repository) 
                         }
                     }
                 }

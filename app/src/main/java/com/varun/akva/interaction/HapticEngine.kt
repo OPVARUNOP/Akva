@@ -26,15 +26,28 @@ class HapticEngine(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    fun playAchievement() {
+    fun playSuccess() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val timings = longArrayOf(0, 50, 100, 50)
-                val amplitudes = intArrayOf(0, 100, 0, 255)
+                val timings = longArrayOf(0, 40, 60, 40)
+                val amplitudes = intArrayOf(0, 150, 0, 255)
                 vibrator?.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator?.vibrate(longArrayOf(0, 50, 100, 50), -1)
+                vibrator?.vibrate(longArrayOf(0, 40, 60, 40), -1)
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun playError() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val timings = longArrayOf(0, 50, 40, 50, 40, 50)
+                val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
+                vibrator?.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(longArrayOf(0, 50, 40, 50, 40, 50), -1)
             }
         } catch (_: Exception) {}
     }

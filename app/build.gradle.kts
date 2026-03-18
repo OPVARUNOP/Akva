@@ -12,8 +12,8 @@ android {
         applicationId = "com.varun.akva"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -67,8 +67,12 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // Gemini AI (for on-device Nano attempt)
+    // Gemini AI
     implementation("com.google.ai.client.generativeai:generativeai:0.2.2")
+
+    // Networking
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.json:json:20231013")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

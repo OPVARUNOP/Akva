@@ -69,6 +69,14 @@ class VoiceEngine(private val context: Context) {
     }
 
     // Observer Mode uses QUEUE_ADD, won't interrupt Conversation
+    fun speakDirect(text: String) {
+        if (!isInitialized) { Log.w(TAG, "TTS not ready"); return }
+        tts?.setPitch(1.0f)
+        tts?.setSpeechRate(0.90f)
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "AKVA_DIRECT_${System.currentTimeMillis()}")
+        Log.d(TAG, "speakDirect: $text")
+    }
+
     fun speakProactive(text: String, packageName: String) {
         if (text.isBlank() || !isInitialized) return
         if (isSpeakingConversation) return
@@ -126,6 +134,18 @@ class VoiceEngine(private val context: Context) {
             isInitialized = false
             isSpeakingConversation = false
         } catch (_: Exception) {}
+    }
+
+    fun setParams(pitch: Float, rate: Float) {
+        tts?.setPitch(pitch)
+        tts?.setSpeechRate(rate)
+    }
+
+    fun speak(text: String) {
+        if (text.isBlank() || !isInitialized) return
+        val params = Bundle()
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, getVolume())
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "gen_${UUID.randomUUID()}")
     }
 
     companion object { private const val TAG = "VoiceEngine" }

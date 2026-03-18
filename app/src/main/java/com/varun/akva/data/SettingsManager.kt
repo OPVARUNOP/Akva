@@ -75,6 +75,12 @@ class SettingsManager(context: Context) {
         }
     }
 
+    fun getSearchApiKey(): String = prefs.getString("search_api_key", "") ?: ""
+    fun setSearchApiKey(value: String) = prefs.edit().putString("search_api_key", value).apply()
+
+    fun getSearchCx(): String = prefs.getString("search_cx", "") ?: ""
+    fun setSearchCx(value: String) = prefs.edit().putString("search_cx", value).apply()
+
     fun clearLearnedData() {
         prefs.edit()
             .remove("last_morning_briefing_date")

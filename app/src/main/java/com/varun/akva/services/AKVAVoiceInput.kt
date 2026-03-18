@@ -20,13 +20,8 @@ import java.util.Locale
 class AKVAVoiceInput(private val context: Context) {
 
     private val settingsManager = SettingsManager(context)
-    private val contextDetector = ContextDetector(context)
-    private val geminiEngine = GeminiEngine(context)
-    private val phoneSystemMonitor = PhoneSystemMonitor(context)
-    private val hapticEngine = HapticEngine(context)
-    private var voiceEngine: VoiceEngine? = null
-    // Assuming accessibility service gives us global actions
-    private val commandEngine = AKVACommandEngine(context, AKVAAccessibilityService.instance) 
+    private var conversationService: AKVAConversationService? = null
+    private var hapticEngine = HapticEngine(context)
     
     private var speechRecognizer: SpeechRecognizer? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -36,7 +31,9 @@ class AKVAVoiceInput(private val context: Context) {
     private var isDestroyed = false
     private val wakeWords = listOf("hey akva", "akva", "hey aqua", "aqua")
 
-    fun init(voice: VoiceEngine) { voiceEngine = voice }
+    fun init(service: AKVAConversationService) { 
+        conversationService = service 
+    }
 
     fun startContinuousListening() {
         if (!settingsManager.wakeWordEnabled) return
@@ -57,8 +54,6 @@ class AKVAVoiceInput(private val context: Context) {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
-                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1000L)
             }
 
             speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -71,9 +66,7 @@ class AKVAVoiceInput(private val context: Context) {
                 override fun onError(error: Int) {
                     isListening = false
                     if (isDestroyed) return
-                    if (error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
-                        handler.postDelayed({ if (!isDestroyed && settingsManager.wakeWordEnabled) startListening() }, 1000)
-                    }
+                    handler.postDelayed({ if (!isDestroyed && settingsManager.wakeWordEnabled) startListening() }, 1000)
                 }
 
                 override fun onResults(results: Bundle?) {
@@ -114,8 +107,6 @@ class AKVAVoiceInput(private val context: Context) {
 
     private fun onWakeWordDetected(fullText: String) {
         try {
-            voiceEngine?.stop()
-
             val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 50)
             tg.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
             handler.postDelayed({ tg.release() }, 200)
@@ -131,15 +122,8 @@ class AKVAVoiceInput(private val context: Context) {
                 isWaitingForCommand = true
                 speechRecognizer?.destroy()
                 handler.postDelayed({ startListening() }, 300)
-                handler.postDelayed({
-                    if (isWaitingForCommand) {
-                        isWaitingForCommand = false
-                        restartListening(500)
-                    }
-                }, 10000)
             }
         } catch (e: Exception) {
-            isWaitingForCommand = false
             restartListening(1000)
         }
     }
@@ -147,47 +131,9 @@ class AKVAVoiceInput(private val context: Context) {
     private fun processCommand(userSpeech: String) {
         scope.launch {
             try {
-                // First: Classify if it's a command
-                val commandClassification = withContext(Dispatchers.IO) {
-                    geminiEngine.classifyCommand(userSpeech)
-                }
-
-                if (commandClassification.isCommand) {
-                    // It is a specific phone command
-                    val executionResult = commandEngine.execute(commandClassification)
-                    voiceEngine?.speakConversation(executionResult)
-                } else {
-                    // It is a general conversation
-                    val ctx = AkvaContext(
-                        appName = "Unknown",
-                        packageName = "",
-                        previousApp = "",
-                        timeOfDay = contextDetector.getTimeOfDay(),
-                        hourOfDay = contextDetector.getHourOfDay(),
-                        dayOfWeek = contextDetector.getDayOfWeek(),
-                        unreadCount = AKVANotificationListener.getTotalUnread(),
-                        totalUnread = AKVANotificationListener.getTotalUnread(),
-                        senderNames = emptyList(),
-                        timesOpenedToday = 0,
-                        batteryPercent = phoneSystemMonitor.getBatteryPercent(),
-                        isCharging = phoneSystemMonitor.isCharging(),
-                        networkType = phoneSystemMonitor.getNetworkType(),
-                        stressScore = 0,
-                        userPattern = "",
-                        deviceId = ""
-                    )
-
-                    val response = withContext(Dispatchers.IO) {
-                        geminiEngine.getConversationResponse(userSpeech, ctx)
-                    }
-
-                    voiceEngine?.speakConversation(response)
-                }
-
-                // Wait for speech to finish, then restart listening
-                handler.postDelayed({ restartListening(500) }, 4000)
+                conversationService?.onUserSpeaks(userSpeech)
+                handler.postDelayed({ restartListening(500) }, 5000)
             } catch (e: Exception) {
-                Log.e(TAG, "Process command error: ${e.message}")
                 restartListening(1000)
             }
         }
@@ -199,14 +145,10 @@ class AKVAVoiceInput(private val context: Context) {
     }
 
     fun stopListening() {
-        isListening = false
-        isWaitingForCommand = false
         isDestroyed = true
         handler.removeCallbacksAndMessages(null)
         try {
-            speechRecognizer?.cancel()
             speechRecognizer?.destroy()
-            speechRecognizer = null
         } catch (_: Exception) {}
         scope.cancel()
     }

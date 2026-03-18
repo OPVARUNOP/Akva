@@ -3,36 +3,36 @@
 3    package="com.varun.akva.test" >
 4
 5    <uses-sdk
-5-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:5:5-74
+5-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:5:5-74
 6        android:minSdkVersion="29"
-6-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:5:15-41
+6-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:5:15-41
 7        android:targetSdkVersion="34" />
-7-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:5:42-71
+7-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:5:42-71
 8
 9    <instrumentation
-9-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:11:5-15:64
+9-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:11:5-15:64
 10        android:name="androidx.test.runner.AndroidJUnitRunner"
-10-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:11:22-76
+10-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:11:22-76
 11        android:functionalTest="false"
-11-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:14:22-52
+11-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:14:22-52
 12        android:handleProfiling="false"
-12-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:13:22-53
+12-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:13:22-53
 13        android:label="Tests for com.varun.akva"
-13-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:15:22-62
+13-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:15:22-62
 14        android:targetPackage="com.varun.akva" />
-14-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:12:22-60
+14-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:12:22-60
 15
 16    <uses-permission android:name="android.permission.REORDER_TASKS" />
 16-->[androidx.test:core:1.5.0] /home/vrn/.gradle/caches/transforms-3/faa93c86e30fdebc30227bc9d41a1a78/transformed/jetified-core-1.5.0/AndroidManifest.xml:24:5-72
 16-->[androidx.test:core:1.5.0] /home/vrn/.gradle/caches/transforms-3/faa93c86e30fdebc30227bc9d41a1a78/transformed/jetified-core-1.5.0/AndroidManifest.xml:24:22-69
 17
 18    <application
-18-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:7:5-9:19
+18-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:7:5-9:19
 19        android:debuggable="true"
 20        android:extractNativeLibs="false" >
 21        <uses-library android:name="android.test.runner" />
-21-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:8:9-60
-21-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest4576757018160111461.xml:8:23-57
+21-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:8:9-60
+21-->/home/vrn/Desktop/AKVA/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest7600227762439991051.xml:8:23-57
 22
 23        <activity
 23-->[androidx.test:core:1.5.0] /home/vrn/.gradle/caches/transforms-3/faa93c86e30fdebc30227bc9d41a1a78/transformed/jetified-core-1.5.0/AndroidManifest.xml:27:9-34:20

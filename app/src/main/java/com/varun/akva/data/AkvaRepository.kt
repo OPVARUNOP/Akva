@@ -6,8 +6,19 @@ import java.util.Calendar
 
 class AkvaRepository(
     private val usageDao: AppUsageDao,
-    private val personalityDao: AppPersonalityDao
+    private val personalityDao: AppPersonalityDao,
+    private val userProfileDao: UserProfileDao,
+    private val conversationDao: ConversationDao,
+    private val actionHistoryDao: ActionHistoryDao
 ) {
+    suspend fun getUserProfile() = userProfileDao.getUserProfile()
+    suspend fun saveUserProfile(profile: UserProfile) = userProfileDao.insertOrUpdate(profile)
+    
+    suspend fun getRecentConversations(limit: Int) = conversationDao.getRecentConversations(limit)
+    suspend fun saveConversation(memory: ConversationMemory) = conversationDao.insert(memory)
+    
+    suspend fun getRecentActions(limit: Int) = actionHistoryDao.getRecentActions(limit)
+
 
     suspend fun logEvent(packageName: String, stressScore: Int, isNight: Boolean, aiResponse: String) {
         usageDao.insertUsageEvent(
